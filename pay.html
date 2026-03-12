@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tofan Store - الدفع</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+
+    *{box-sizing:border-box}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:#eef2f5;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent
+    }
+
+    .loader{
+      border:4px solid #f3f3f3;
+      border-top:4px solid #14454d;
+      border-radius:50%;
+      width:46px;height:46px;
+      animation:spin .8s linear infinite
+    }
+    @keyframes spin{
+      0%{transform:rotate(0)}
+      100%{transform:rotate(360deg)}
+    }
+
+    .toast-notification{animation:slideUp .3s ease-out forwards}
+    @keyframes slideUp{
+      from{transform:translate(-50%,100%);opacity:0}
+      to{transform:translate(-50%,0);opacity:1}
+    }
+
+    .pay-card{
+      background:#fff;
+      border-radius:2rem;
+      box-shadow:0 2px 10px rgba(0,0,0,.06);
+      border:1px solid rgba(0,0,0,.04)
+    }
+
+    .view-section{display:none}
+    .view-section.active{display:block}
+
+    .step-line{
+      height:4px;
+      border-radius:999px;
+      flex:1;
+      background:#d1d5db;
+      transition:.25s;
+      min-width:18px
+    }
+    .step-line.done{background:#22c55e}
+
+    .step-node{
+      width:34px;
+      height:34px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:14px;
+      transition:.25s;
+      flex:0 0 34px
+    }
+    .step-node.done{background:#22c55e;color:#fff}
+    .step-node.current{
+      background:#111827;
+      color:#fff;
+      border:4px solid #e5e7eb
+    }
+    .step-node.idle{
+      background:#e5e7eb;
+      color:#6b7280
+    }
+
+    .step-label{
+      font-weight:900;
+      font-size:13px;
+      line-height:1.1;
+      white-space:nowrap
+    }
+    .step-label.done{color:#16a34a}
+    .step-label.current{color:#111827}
+    .step-label.idle{color:#6b7280}
+
+    .payment-option{
+      transition:all .2s ease;
+      border:2px solid #edf0f3;
+      background:#fff;
+      cursor:pointer
+    }
+    .payment-option.selected{
+      border-color:#14454d;
+      background:#f0fdfa
+    }
+
+    .pay-method-image{
+      width:42px;
+      height:42px;
+      object-fit:cover;
+      border-radius:999px;
+      background:#fff;
+      border:1px solid #e5e7eb
+    }
+
+    .verified-green{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:20px;
+      height:20px;
+      border-radius:999px;
+      background:#dcfce7;
+      color:#16a34a;
+      font-size:11px
+    }
+
+    .safe-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      color:#16a34a;
+      font-size:11px;
+      font-weight:800
+    }
+
+    .slider-wrap{
+      position:relative;
+      width:100%;
+      background:#fff
+    }
+    .slider-track{
+      display:flex;
+      overflow-x:auto;
+      scroll-snap-type:x mandatory;
+      scroll-behavior:smooth;
+      gap:12px;
+      padding:12px
+    }
+    .slider-track::-webkit-scrollbar{display:none}
+    .slide-item{
+      min-width:100%;
+      scroll-snap-align:start;
+      position:relative;
+      border-radius:1.5rem;
+      overflow:hidden;
+      background:#f8fafc
+    }
+    .slide-item img{
+      width:100%;
+      display:block;
+      object-fit:cover;
+      max-height:420px
+    }
+    .slider-btn{
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%);
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      background:rgba(17,24,39,.82);
+      color:#fff;
+      z-index:7;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:none;
+      cursor:pointer
+    }
+    .slider-btn.prev{right:10px}
+    .slider-btn.next{left:10px}
+    .slider-dots{
+      display:flex;
+      justify-content:center;
+      gap:6px;
+      padding:0 12px 12px
+    }
+    .slider-dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#d1d5db;
+      transition:.2s;
+      border:none
+    }
+    .slider-dot.active{
+      width:20px;
+      background:#111827
+    }
+
+    .bottom-action-bar{
+      position:fixed;
+      bottom:0;
+      left:0;
+      right:0;
+      z-index:60;
+      background:#fff;
+      border-top:1px solid #e5e7eb;
+      box-shadow:0 -4px 10px rgba(0,0,0,.05);
+      padding:14px 16px calc(14px + env(safe-area-inset-bottom))
+    }
+
+    .field-preview{
+      background:#f9fafb;
+      border:1px solid #f1f5f9;
+      border-radius:1.1rem;
+      padding:10px 12px
+    }
+
+    .proof-thumb{
+      width:110px;
+      height:110px;
+      object-fit:cover;
+      border-radius:1rem;
+      border:1px solid #e5e7eb;
+      background:#fff
+    }
+
+    .copy-box{
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:1.2rem;
+      padding:12px
+    }
+
+    .method-extra-image{
+      width:100%;
+      border-radius:1rem;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      object-fit:cover
+    }
+
+    .product-mini-card{
+      border:1px solid #eef2f7;
+      background:#fff;
+      border-radius:1.25rem;
+      padding:10px;
+      display:flex;
+      gap:12px;
+      align-items:center
+    }
+
+    input,button,select,.rounded-xl,.rounded-2xl,.rounded-3xl{
+      border-radius:2rem!important
+    }
+    textarea{border-radius:1.5rem!important}
+    code{direction:ltr;unicode-bidi:bidi-override}
+
+    @media (max-width:640px){
+      .step-node{
+        width:30px;
+        height:30px;
+        flex-basis:30px;
+        font-size:13px;
+        border-width:3px
+      }
+      .step-label{font-size:11px}
+      .step-line{min-width:12px}
+    }
+  </style>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="firebase-config.js"></script>
+</head>
+<body class="bg-[#eef2f5]">
+
+  <div id="loadingOverlay" class="fixed inset-0 bg-white/85 backdrop-blur-sm z-[9999] flex items-center justify-center">
+    <div class="flex flex-col items-center">
+      <div class="loader mb-3"></div>
+      <p class="text-[#14454d] font-bold">جاري التحميل...</p>
+    </div>
+  </div>
+
+  <div class="max-w-3xl mx-auto p-4 pb-32">
+
+    <div class="flex items-center justify-between mb-4">
+      <button onclick="goBackGeneral()" class="w-11 h-11 bg-white shadow rounded-full flex items-center justify-center text-gray-700">
+        <i class="fas fa-arrow-right"></i>
+      </button>
+      <h1 class="font-black text-2xl text-gray-900">الدفع</h1>
+      <div class="text-sm text-gray-400 font-bold flex items-center gap-2">
+        <i class="fas fa-lock"></i>
+        <span>آمن</span>
+      </div>
+    </div>
+
+    <div id="stepperWrap" class="pay-card p-4 mb-5">
+      <div class="flex items-center gap-2">
+        <div class="step-node current" id="stepNode1">1</div>
+        <div class="step-label current" id="stepLabel1">الطلب</div>
+
+        <div class="step-line" id="stepLine1"></div>
+
+        <div class="step-node idle" id="stepNode2">2</div>
+        <div class="step-label idle" id="stepLabel2">الحساب</div>
+
+        <div class="step-line" id="stepLine2"></div>
+
+        <div class="step-node idle" id="stepNode3">3</div>
+        <div class="step-label idle" id="stepLabel3">الدفع</div>
+      </div>
+
+      <div class="border-t mt-4 pt-3 text-gray-400 text-xs sm:text-sm font-bold flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2"><i class="fas fa-shield-halved"></i><span>حماية المشتري</span></div>
+        <div class="flex items-center gap-2"><i class="fas fa-lock"></i><span>دفع آمن</span></div>
+        <div class="flex items-center gap-2"><i class="far fa-circle-check"></i><span>إرسال الطلب</span></div>
+      </div>
+    </div>
+
+    <section id="detailsView" class="view-section active">
+      <div class="pay-card p-6">
+        <h3 class="font-black text-xl text-gray-900 mb-4">معلومات الطلب</h3>
+        <div id="detailsContent"></div>
+      </div>
+    </section>
+
+    <section id="checkoutView" class="view-section">
+      <div id="authCard" class="pay-card p-6 mb-5">
+        <div class="flex items-center gap-4 mb-5">
+          <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-xl">
+            <i class="fas fa-user-check"></i>
+          </div>
+          <div>
+            <h2 class="font-black text-2xl text-gray-900">الدخول أو إنشاء حساب</h2>
+            <p class="text-gray-400 text-sm font-bold">يجب تسجيل الدخول قبل إكمال الدفع</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-5">
+          <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-3 bg-[#14454d] text-white font-bold">تسجيل الدخول</button>
+          <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold">إنشاء حساب</button>
+        </div>
+
+        <div id="loginFormWrap">
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">البريد</label>
+            <input id="loginEmail" type="email" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="example@email.com">
+          </div>
+
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">كلمة المرور</label>
+            <input id="loginPassword" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="********">
+          </div>
+
+          <button onclick="handleLogin()" class="w-full py-3 bg-gray-900 text-white font-bold mt-2">
+            تسجيل الدخول
+          </button>
+
+          <button onclick="handleForgotPassword()" class="w-full py-3 bg-blue-50 text-blue-700 font-bold mt-3">
+            نسيت كلمة المرور
+          </button>
+        </div>
+
+        <div id="registerFormWrap" class="hidden">
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">الاسم الكامل</label>
+            <input id="registerName" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="اسمك الكامل">
+          </div>
+
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">البريد</label>
+            <input id="registerEmail" type="email" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="example@email.com">
+          </div>
+
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">كلمة المرور</label>
+            <input id="registerPassword" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="6 أحرف أو أكثر">
+          </div>
+
+          <button onclick="handleRegister()" class="w-full py-3 bg-[#14454d] text-white font-bold mt-2">
+            إنشاء حساب
+          </button>
+        </div>
+      </div>
+
+      <div id="signedInCard" class="pay-card p-0 mb-5 hidden">
+        <div class="p-6 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-xl">
+            <i class="fas fa-check"></i>
+          </div>
+          <div>
+            <h2 class="font-black text-2xl text-gray-900">تم تسجيل الدخول</h2>
+          </div>
+        </div>
+
+        <div class="border-t px-6 py-6 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-2xl">
+              <i class="far fa-user"></i>
+            </div>
+            <div>
+              <div id="signedInName" class="font-bold text-2xl text-gray-900">-</div>
+              <div id="signedInEmail" class="text-gray-400 text-sm font-bold">-</div>
+            </div>
+          </div>
+
+          <button onclick="logoutUser()" class="px-4 py-2 bg-gray-100 text-gray-800 font-bold">
+            خروج
+          </button>
+        </div>
+      </div>
+
+      <div class="pay-card p-6 mb-5">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="font-black text-xl text-gray-900">ملخص الطلب</h3>
+        </div>
+
+        <div id="summaryItemsWrap" class="space-y-3 border-b pb-4 mb-4"></div>
+
+        <div class="space-y-3 text-lg mb-4">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">المبلغ الفرعي</span>
+            <span class="font-bold" id="summarySubtotal">0.00 ₪</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">رسوم الدفع</span>
+            <span class="font-bold" id="summaryFee">0.00 ₪</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">رسوم التوصيل</span>
+            <span class="font-bold" id="summaryDeliveryFee">0.00 ₪</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-500">عدد المنتجات</span>
+            <span class="font-bold text-gray-700" id="summaryItemsCount">0</span>
+          </div>
+        </div>
+
+        <div class="border-t mt-5 pt-5 flex items-center justify-between">
+          <span class="font-black text-3xl text-gray-900">الإجمالي</span>
+          <span class="font-black text-4xl text-gray-900" id="summaryTotal">0.00 ₪</span>
+        </div>
+      </div>
+
+      <div id="paymentMethodsCard" class="pay-card p-6 mb-5">
+        <h3 class="font-black text-xl text-gray-900 mb-4">طريقة الدفع</h3>
+        <div id="paymentMethodsGrid" class="grid grid-cols-2 gap-3"></div>
+        <div id="paymentMethodsEmpty" class="hidden text-center py-8 text-gray-400 font-bold">
+          لا توجد طرق دفع متاحة حالياً
+        </div>
+      </div>
+
+      <div id="selectedMethodCard" class="pay-card p-6 mb-5 hidden">
+        <div class="flex items-center gap-3 mb-5">
+          <img id="selectedMethodImage" class="pay-method-image" src="" alt="">
+          <div>
+            <h3 id="selectedMethodName" class="font-black text-xl text-gray-900">-</h3>
+            <p class="text-gray-400 text-sm font-bold">أكمل بيانات طريقة الدفع</p>
+          </div>
+        </div>
+
+        <div id="methodCopyFieldsWrap" class="space-y-3 mb-5"></div>
+        <div id="methodExtraImagesWrap" class="space-y-3 mb-5"></div>
+        <div id="methodPayerFieldsWrap" class="space-y-3 mb-5"></div>
+
+        <div class="border-t pt-5">
+          <h4 class="font-bold text-lg mb-3">إثبات الدفع</h4>
+
+          <div class="mb-3">
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">رفع صورة إثبات الدفع</label>
+            <input id="paymentProofFile" type="file" accept="image/*" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" onchange="previewPaymentProof()">
+          </div>
+
+          <div id="paymentProofPreviewWrap" class="hidden">
+            <div class="text-xs text-green-600 font-bold mb-2">تم تحديد الصورة</div>
+            <img id="paymentProofPreview" class="proof-thumb" src="" alt="proof">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="finalPaymentView" class="view-section">
+      <div class="pay-card p-6 mb-5">
+        <h3 class="font-black text-xl text-gray-900 mb-4">تأكيد الإرسال</h3>
+        <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 text-sm font-bold text-gray-600 leading-7">
+          سيتم إرسال:
+          <br>• المنتجات المحددة
+          <br>• بيانات المستخدم
+          <br>• طريقة الدفع المختارة
+          <br>• بيانات الدفع المدخلة
+          <br>• صورة إثبات الدفع
+        </div>
+
+        <button onclick="submitCustomPaymentOrder()" class="w-full mt-5 py-4 bg-gray-900 text-white font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <i class="fas fa-paper-plane"></i> إرسال الطلب
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="bottomActionBar" class="bottom-action-bar">
+    <button id="bottomPrimaryBtn" onclick="handleBottomPrimary()" class="w-full bg-[#14454d] text-white px-10 py-4 rounded-full font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform text-xl">
+      <span id="bottomPrimaryBtnText">التالي</span>
+    </button>
+  </div>
+
+  <script>
+    firebase.initializeApp(firebaseConfig1885);
+    const rtdb = firebase.database();
+    const auth = firebase.auth();
+    const storage = firebase.storage();
+
+    const PATH_SETTINGS_STORE = FIREBASE_PATHS_1885.settingsStore;
+    const PATH_SETTINGS_PAYMENT_METHODS = FIREBASE_PATHS_1885.settingsPaymentMethods;
+    const PATH_ORDERS = FIREBASE_PATHS_1885.orders;
+    const PATH_USERS = FIREBASE_PATHS_1885.users;
+
+    const CHECKOUT_SELECTION_KEY = STORAGE_KEYS_1885.checkoutSelection;
+    const PAYMENT_FEE_PERCENT = 0.01;
+
+    let storeSettings = {
+      storeName: "Tofan Store",
+      storeLogoUrl: "",
+      deliveryFee: 0
+    };
+
+    let paymentMethods = [];
+    let selectedPaymentMethodKey = "";
+    let currentUser = null;
+    let currentUserProfile = null;
+    let checkoutSelection = { source: "buy_now", items: [] };
+
+    function optimizedImageAttrs(){
+      return 'loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer"';
+    }
+
+    function setLoading(on){
+      const el = document.getElementById('loadingOverlay');
+      if(!el) return;
+      on ? el.classList.remove('hidden') : el.classList.add('hidden');
+    }
+
+    function delayed(fn, ms = 180){
+      setLoading(true);
+      setTimeout(() => {
+        try{ fn(); }finally{ setLoading(false); }
+      }, ms);
+    }
+
+    function showToast(msg, type = "success"){
+      const t = document.createElement('div');
+      const icons = {
+        success: '<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>',
+        error: '<i class="fa-solid fa-circle-xmark text-rose-400 text-lg"></i>',
+        info: '<i class="fa-solid fa-circle-info text-sky-400 text-lg"></i>'
+      };
+      t.className = "toast-notification fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#111827]/95 backdrop-blur-md text-white px-5 py-3 rounded-full z-[10000] text-sm font-bold flex items-center gap-3 shadow-2xl border border-white/10";
+      t.innerHTML = `${icons[type] || icons.success}<span>${escapeHtml(msg)}</span>`;
+      document.body.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translate(-50%,20px)';
+        setTimeout(() => t.remove(), 300);
+      }, 2500);
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function safeParseJSON(txt, fallback){
+      try{return JSON.parse(txt);}catch{return fallback;}
+    }
+
+    function normalizeUsername(value){
+      return String(value || "").trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_\u0600-\u06FF]/g, "");
+    }
+
+    function randomUsernameFromName(name){
+      const base = normalizeUsername(name || "user") || "user";
+      return `${base}_${Math.random().toString(36).slice(2,7)}`;
+    }
+
+    function switchAuthTab(tab){
+      const loginWrap = document.getElementById("loginFormWrap");
+      const registerWrap = document.getElementById("registerFormWrap");
+      const loginBtn = document.getElementById("tabLoginBtn");
+      const registerBtn = document.getElementById("tabRegisterBtn");
+
+      if(tab === "register"){
+        loginWrap.classList.add("hidden");
+        registerWrap.classList.remove("hidden");
+        loginBtn.className = "flex-1 py-3 bg-gray-100 text-gray-700 font-bold";
+        registerBtn.className = "flex-1 py-3 bg-[#14454d] text-white font-bold";
+      }else{
+        registerWrap.classList.add("hidden");
+        loginWrap.classList.remove("hidden");
+        registerBtn.className = "flex-1 py-3 bg-gray-100 text-gray-700 font-bold";
+        loginBtn.className = "flex-1 py-3 bg-[#14454d] text-white font-bold";
+      }
+    }
+
+    function getPaymentFee(price){
+      return Number(price || 0) * PAYMENT_FEE_PERCENT;
+    }
+
+    function getDeliveryFee(){
+      return Number(storeSettings.deliveryFee || 0);
+    }
+
+    function formatDisplayPrice(ilsAmount){
+      return `${Number(ilsAmount || 0).toFixed(2)} ₪`;
+    }
+
+    function buildPaymentMethods(remote){
+      paymentMethods = Object.entries(remote || {}).map(([key,val]) => ({
+        key,
+        name: val?.name || "طريقة دفع",
+        image: val?.image || "",
+        enabled: val?.enabled !== false,
+        copyFields: Array.isArray(val?.copyFields) ? val.copyFields : [],
+        extraImages: Array.isArray(val?.extraImages) ? val.extraImages : [],
+        payerFields: Array.isArray(val?.payerFields) ? val.payerFields : []
+      })).filter(m => m.enabled);
+    }
+
+    function renderSlider(images){
+      const safe = Array.isArray(images) ? images.filter(Boolean) : [];
+      if(!safe.length) return '';
+      const trackId = 'selected_images_track';
+      const dotsId = 'selected_images_dots';
+      return `
+        <div class="slider-wrap relative mb-4">
+          ${safe.length > 1 ? `<button class="slider-btn prev" onclick="scrollSlider('${trackId}',-1)"><i class="fas fa-chevron-right"></i></button>` : ''}
+          ${safe.length > 1 ? `<button class="slider-btn next" onclick="scrollSlider('${trackId}',1)"><i class="fas fa-chevron-left"></i></button>` : ''}
+          <div id="${trackId}" class="slider-track" onscroll="syncSliderDots('${trackId}','${dotsId}')">
+            ${safe.map(img => `
+              <div class="slide-item">
+                <img src="${escapeHtml(img)}" ${optimizedImageAttrs()} onerror="this.src='https://via.placeholder.com/900x400?text=Image'">
+              </div>
+            `).join('')}
+          </div>
+          ${safe.length > 1 ? `<div id="${dotsId}" class="slider-dots">${safe.map((_,i) => `<button class="slider-dot ${i===0?'active':''}" onclick="goToSlider('${trackId}','${dotsId}',${i})"></button>`).join('')}</div>` : ''}
+        </div>
+      `;
+    }
+
+    function scrollSlider(id, dir=1){
+      const track = document.getElementById(id);
+      if(!track) return;
+      const amount = track.clientWidth * 0.9;
+      track.scrollBy({left: dir * amount, behavior:'smooth'});
+    }
+
+    function syncSliderDots(trackId, dotsId){
+      const track = document.getElementById(trackId);
+      const dots = document.getElementById(dotsId);
+      if(!track || !dots) return;
+      const children = [...dots.querySelectorAll('.slider-dot')];
+      const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+      children.forEach((dot,i) => dot.classList.toggle('active', i === index));
+    }
+
+    function goToSlider(trackId, dotsId, index){
+      const track = document.getElementById(trackId);
+      if(!track) return;
+      track.scrollTo({left: track.clientWidth * index, behavior:'smooth'});
+      setTimeout(() => syncSliderDots(trackId, dotsId), 180);
+    }
+
+    function restoreCheckoutSelection(){
+      checkoutSelection = safeParseJSON(sessionStorage.getItem(CHECKOUT_SELECTION_KEY) || "null", null) || { source: "buy_now", items: [] };
+      if(!Array.isArray(checkoutSelection.items)) checkoutSelection.items = [];
+    }
+
+    function getSelectionItems(){
+      return Array.isArray(checkoutSelection.items) ? checkoutSelection.items : [];
+    }
+
+    function getOrderSubtotal(){
+      return getSelectionItems().reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.qty || 1)), 0);
+    }
+
+    function getOrderTotal(){
+      const subtotal = getOrderSubtotal();
+      const fee = getPaymentFee(subtotal);
+      const delivery = getDeliveryFee();
+      return subtotal + fee + delivery;
+    }
+
+    function renderDetailsPage(){
+      const items = getSelectionItems();
+      if(!items.length) return;
+
+      const allImages = [];
+      items.forEach(item => {
+        if(item.image1) allImages.push(item.image1);
+        if(item.image2 && item.image2 !== item.image1) allImages.push(item.image2);
+      });
+
+      document.getElementById('detailsContent').innerHTML = `
+        <div class="flex items-center gap-4 border-b pb-4 mb-4">
+          <div class="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white overflow-hidden shadow-inner">
+            ${storeSettings.storeLogoUrl
+              ? `<img src="${escapeHtml(storeSettings.storeLogoUrl)}" class="w-full h-full object-cover" onerror="this.outerHTML='&lt;i class=&quot;fas fa-store text-xl text-[#14454d]&quot;&gt;&lt;/i&gt;'">`
+              : `<i class="fas fa-store text-xl text-[#14454d]"></i>`}
+          </div>
+          <div>
+            <h3 class="font-bold text-lg">${escapeHtml(storeSettings.storeName || 'المتجر')}</h3>
+            <div class="safe-badge">
+              <span class="verified-green"><i class="fas fa-check"></i></span>
+              <span>خدمة موثوقة وآمنة</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <span class="text-gray-400 text-xs block mb-1">المبلغ</span>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-2xl text-[#14454d]">${formatDisplayPrice(getOrderSubtotal())}</span>
+            </div>
+          </div>
+          <div class="text-left">
+            <span class="text-gray-400 text-xs block mb-1">عدد المنتجات</span>
+            <span class="font-bold text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">${items.length}</span>
+          </div>
+        </div>
+
+        ${renderSlider(allImages)}
+
+        <div class="space-y-3">
+          ${items.map(item => `
+            <div class="product-mini-card">
+              <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/100x120?text=Image')}" class="w-16 h-20 object-cover rounded-xl border" ${optimizedImageAttrs()}>
+              <div class="flex-1">
+                <div class="font-bold text-sm text-gray-900">${escapeHtml(item.nameAr || item.nameEn || item.name || 'منتج')}</div>
+                <div class="text-xs text-gray-400 mt-1">العدد: ${Number(item.qty || 1)}</div>
+                <div class="font-black text-[#14454d] mt-1">${formatDisplayPrice(Number(item.price || 0) * Number(item.qty || 1))}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+
+      updateSummaryBox();
+      updateBottomButton();
+    }
+
+    function updateSummaryBox(){
+      const items = getSelectionItems();
+      const subtotal = getOrderSubtotal();
+      const fee = getPaymentFee(subtotal);
+      const deliveryFee = getDeliveryFee();
+      const total = subtotal + fee + deliveryFee;
+
+      const wrap = document.getElementById("summaryItemsWrap");
+      wrap.innerHTML = items.map(item => `
+        <div class="flex items-center justify-between gap-4">
+          <div class="text-gray-600 font-bold">${escapeHtml(item.nameAr || item.nameEn || item.name || 'منتج')} × ${Number(item.qty || 1)}</div>
+          <div class="font-black text-lg text-gray-900">${formatDisplayPrice(Number(item.price || 0) * Number(item.qty || 1))}</div>
+        </div>
+      `).join('');
+
+      document.getElementById("summarySubtotal").textContent = formatDisplayPrice(subtotal);
+      document.getElementById("summaryFee").textContent = formatDisplayPrice(fee);
+      document.getElementById("summaryDeliveryFee").textContent = formatDisplayPrice(deliveryFee);
+      document.getElementById("summaryTotal").textContent = formatDisplayPrice(total);
+      document.getElementById("summaryItemsCount").textContent = String(items.length);
+    }
+
+    function setStep(step){
+      const nodes = [
+        document.getElementById("stepNode1"),
+        document.getElementById("stepNode2"),
+        document.getElementById("stepNode3")
+      ];
+      const lines = [
+        document.getElementById("stepLine1"),
+        document.getElementById("stepLine2")
+      ];
+      const labels = [
+        document.getElementById("stepLabel1"),
+        document.getElementById("stepLabel2"),
+        document.getElementById("stepLabel3")
+      ];
+
+      nodes.forEach(n => n.className = "step-node idle");
+      labels.forEach(l => l.className = "step-label idle");
+      lines.forEach(l => l.className = "step-line");
+
+      if(step >= 1){
+        nodes[0].className = step === 1 ? "step-node current" : "step-node done";
+        labels[0].className = step === 1 ? "step-label current" : "step-label done";
+      }
+      if(step >= 2){
+        lines[0].className = "step-line done";
+        nodes[1].className = step === 2 ? "step-node current" : "step-node done";
+        labels[1].className = step === 2 ? "step-label current" : "step-label done";
+      }
+      if(step >= 3){
+        lines[1].className = "step-line done";
+        nodes[2].className = "step-node current";
+        labels[2].className = "step-label current";
+      }
+    }
+
+    function getCurrentViewId(){
+      if(document.getElementById("finalPaymentView").classList.contains("active")) return "finalPaymentView";
+      if(document.getElementById("checkoutView").classList.contains("active")) return "checkoutView";
+      return "detailsView";
+    }
+
+    function updateBottomButton(){
+      const txt = document.getElementById("bottomPrimaryBtnText");
+      const view = getCurrentViewId();
+
+      if(view === "detailsView"){
+        txt.textContent = "التالي";
+      }else if(view === "checkoutView"){
+        txt.textContent = "التالي";
+      }else{
+        txt.textContent = "إرسال";
+      }
+    }
+
+    function handleBottomPrimary(){
+      const view = getCurrentViewId();
+
+      if(view === "detailsView"){
+        delayed(() => {
+          document.getElementById("detailsView").classList.remove("active");
+          document.getElementById("checkoutView").classList.add("active");
+          document.getElementById("finalPaymentView").classList.remove("active");
+          setStep(2);
+          updateBottomButton();
+          window.scrollTo(0,0);
+        });
+        return;
+      }
+
+      if(view === "checkoutView"){
+        handleCheckoutPrimary();
+        return;
+      }
+
+      if(view === "finalPaymentView"){
+        submitCustomPaymentOrder();
+      }
+    }
+
+    function setSignedInUI(user, profile){
+      const authCard = document.getElementById("authCard");
+      const signedInCard = document.getElementById("signedInCard");
+      authCard.classList.toggle("hidden", !!user);
+      signedInCard.classList.toggle("hidden", !user);
+
+      if(user){
+        document.getElementById("signedInName").textContent = profile?.displayName || user.displayName || "مستخدم";
+        document.getElementById("signedInEmail").textContent = profile?.email || user.email || "-";
+      }
+    }
+
+    function renderPaymentMethods(){
+      const grid = document.getElementById("paymentMethodsGrid");
+      const empty = document.getElementById("paymentMethodsEmpty");
+
+      if(!paymentMethods.length){
+        grid.innerHTML = "";
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+      grid.innerHTML = paymentMethods.map(method => `
+        <div onclick="selectPaymentMethod('${method.key}')" class="payment-option p-4 flex flex-col items-center gap-2 ${selectedPaymentMethodKey === method.key ? 'selected' : ''}" data-method-key="${method.key}">
+          <img src="${escapeHtml(method.image || 'https://via.placeholder.com/120?text=Pay')}" class="pay-method-image" onerror="this.src='https://via.placeholder.com/120?text=Pay'">
+          <span class="text-xs font-bold text-gray-700 text-center">${escapeHtml(method.name)}</span>
+        </div>
+      `).join('');
+    }
+
+    function getSelectedPaymentMethod(){
+      return paymentMethods.find(m => m.key === selectedPaymentMethodKey) || null;
+    }
+
+    function selectPaymentMethod(key){
+      selectedPaymentMethodKey = key;
+      renderPaymentMethods();
+      renderSelectedMethodDetails();
+    }
+
+    function copyTextValue(value){
+      const el = document.createElement('textarea');
+      el.value = value || "";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast("تم النسخ","success");
+    }
+
+    function renderSelectedMethodDetails(){
+      const method = getSelectedPaymentMethod();
+      const card = document.getElementById("selectedMethodCard");
+      const wrapCopy = document.getElementById("methodCopyFieldsWrap");
+      const wrapImages = document.getElementById("methodExtraImagesWrap");
+      const wrapPayer = document.getElementById("methodPayerFieldsWrap");
+
+      if(!method){
+        card.classList.add("hidden");
+        wrapCopy.innerHTML = "";
+        wrapImages.innerHTML = "";
+        wrapPayer.innerHTML = "";
+        return;
+      }
+
+      card.classList.remove("hidden");
+      document.getElementById("selectedMethodName").textContent = method.name || "طريقة دفع";
+      document.getElementById("selectedMethodImage").src = method.image || "https://via.placeholder.com/120?text=Pay";
+
+      wrapCopy.innerHTML = (method.copyFields || []).map(field => `
+        <div class="copy-box">
+          <div class="text-xs text-gray-400 font-bold mb-2">${escapeHtml(field.label || 'حقل')}</div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-white border border-gray-200 px-4 py-3 rounded-[1.2rem] text-sm font-bold break-all">${escapeHtml(field.value || '')}</div>
+            <button type="button" onclick="copyTextValue('${escapeHtml((field.value || '').replaceAll('\\','\\\\'))}')" class="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+        </div>
+      `).join('') || "";
+
+      wrapImages.innerHTML = (method.extraImages || []).map(img => `
+        <div class="copy-box">
+          ${img.label ? `<div class="text-xs text-gray-400 font-bold mb-2">${escapeHtml(img.label)}</div>` : ''}
+          <img src="${escapeHtml(img.url || 'https://via.placeholder.com/600x300?text=Image')}" class="method-extra-image" onerror="this.src='https://via.placeholder.com/600x300?text=Image'">
+        </div>
+      `).join('') || "";
+
+      wrapPayer.innerHTML = `
+        <h4 class="font-bold text-lg mb-2">بيانات الدفع المطلوبة</h4>
+        ${(method.payerFields || []).map(field => `
+          <div>
+            <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">
+              ${escapeHtml(field.label || 'حقل')}
+              ${field.required !== false ? '<span class="text-red-500">*</span>' : ''}
+            </label>
+            <input
+              data-payer-field="1"
+              data-key="${escapeHtml(field.key || '')}"
+              data-label="${escapeHtml(field.label || '')}"
+              data-required="${field.required !== false ? 'true' : 'false'}"
+              class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold"
+              placeholder="${escapeHtml(field.placeholder || '')}"
+            >
+          </div>
+        `).join('') || `<div class="text-sm text-gray-400 font-bold">لا توجد حقول إضافية</div>`}
+      `;
+    }
+
+    function previewPaymentProof(){
+      const input = document.getElementById("paymentProofFile");
+      const file = input.files?.[0];
+      const wrap = document.getElementById("paymentProofPreviewWrap");
+      const img = document.getElementById("paymentProofPreview");
+
+      if(!file){
+        wrap.classList.add("hidden");
+        img.src = "";
+        return;
+      }
+
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      wrap.classList.remove("hidden");
+    }
+
+    function collectPayerFields(){
+      const method = getSelectedPaymentMethod();
+      const els = document.querySelectorAll("[data-payer-field='1']");
+      const values = {};
+      const labels = {};
+      let ok = true;
+
+      if(!method) return {ok:false, values:{}, labels:{}};
+
+      els.forEach(el => {
+        const key = el.getAttribute("data-key") || "";
+        const label = el.getAttribute("data-label") || key;
+        const required = el.getAttribute("data-required") === "true";
+        const value = (el.value || "").trim();
+        el.classList.remove("ring-2","ring-red-400");
+
+        if(required && !value){
+          ok = false;
+          el.classList.add("ring-2","ring-red-400");
+        }
+
+        values[key] = value;
+        labels[key] = label;
+      });
+
+      return {ok, values, labels};
+    }
+
+    function handleCheckoutPrimary(){
+      if(!currentUser){
+        showToast("يجب تسجيل الدخول أولاً","error");
+        return;
+      }
+
+      if(!selectedPaymentMethodKey){
+        showToast("اختر طريقة الدفع أولاً","error");
+        document.getElementById("paymentMethodsCard").scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+
+      const payer = collectPayerFields();
+      if(!payer.ok){
+        showToast("يرجى تعبئة بيانات الدفع المطلوبة","error");
+        return;
+      }
+
+      const proofFile = document.getElementById("paymentProofFile").files?.[0] || null;
+      if(!proofFile){
+        showToast("ارفع صورة إثبات الدفع","error");
+        document.getElementById("selectedMethodCard").scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+
+      delayed(() => {
+        document.getElementById("detailsView").classList.remove("active");
+        document.getElementById("checkoutView").classList.remove("active");
+        document.getElementById("finalPaymentView").classList.add("active");
+        setStep(3);
+        updateBottomButton();
+        window.scrollTo(0,0);
+      });
+    }
+
+    async function uploadFileToStorage(file, folder){
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+      const path = `${folder}/${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`;
+      const ref = storage.ref().child(path);
+      await ref.put(file);
+      return await ref.getDownloadURL();
+    }
+
+    async function submitCustomPaymentOrder(){
+      if(!currentUser){
+        showToast("يجب تسجيل الدخول أولاً","error");
+        return;
+      }
+
+      const method = getSelectedPaymentMethod();
+      if(!method){
+        showToast("اختر طريقة الدفع","error");
+        return;
+      }
+
+      const payer = collectPayerFields();
+      if(!payer.ok){
+        showToast("يرجى تعبئة بيانات الدفع المطلوبة","error");
+        return;
+      }
+
+      const proofFile = document.getElementById("paymentProofFile").files?.[0] || null;
+      if(!proofFile){
+        showToast("ارفع صورة إثبات الدفع","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const proofUrl = await uploadFileToStorage(proofFile, "payment_proofs_1885");
+
+        const subtotal = getOrderSubtotal();
+        const fee = getPaymentFee(subtotal);
+        const deliveryFee = getDeliveryFee();
+        const total = subtotal + fee + deliveryFee;
+
+        const order = {
+          paymentMethodType: "custom_method",
+          paymentMethodKey: method.key,
+          paymentMethodName: method.name || "",
+          amountIls: Number(total || 0),
+          subtotalIls: Number(subtotal || 0),
+          feeIls: Number(fee || 0),
+          deliveryFeeIls: Number(deliveryFee || 0),
+          displayAmount: formatDisplayPrice(total || 0),
+
+          products: getSelectionItems().map(item => ({
+            id: item.id || "",
+            nameAr: item.nameAr || "",
+            nameEn: item.nameEn || "",
+            price: Number(item.price || 0),
+            qty: Number(item.qty || 1),
+            image1: item.image1 || "",
+            image2: item.image2 || ""
+          })),
+
+          paymentMethodSnapshot: {
+            name: method.name || "",
+            image: method.image || "",
+            copyFields: method.copyFields || [],
+            extraImages: method.extraImages || [],
+            payerFields: method.payerFields || []
+          },
+
+          paymentSubmission: {
+            payerFields: payer.values || {},
+            payerFieldLabels: payer.labels || {},
+            proofImage: proofUrl
+          },
+
+          customerUserId: currentUser?.uid || "",
+          customerEmail: currentUser?.email || "",
+          customerName: currentUserProfile?.displayName || currentUser?.displayName || "",
+
+          status: "pending",
+          adminDecision: "pending",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        await rtdb.ref(PATH_ORDERS).push(order);
+
+        showToast("تم إرسال الطلب بنجاح","success");
+
+        document.getElementById("paymentProofFile").value = "";
+        document.getElementById("paymentProofPreviewWrap").classList.add("hidden");
+        document.getElementById("paymentProofPreview").src = "";
+        document.querySelectorAll("[data-payer-field='1']").forEach(el => el.value = "");
+
+        setTimeout(() => {
+          backToStore();
+        }, 800);
+      }catch(e){
+        console.error(e);
+        showToast("فشل إرسال الطلب","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function handleLogin(){
+      const email = (document.getElementById("loginEmail").value || "").trim().toLowerCase();
+      const password = (document.getElementById("loginPassword").value || "").trim();
+
+      if(!email || !email.includes("@")){
+        showToast("أدخل البريد بشكل صحيح","error");
+        return;
+      }
+      if(password.length < 4){
+        showToast("أدخل كلمة المرور","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        await auth.signInWithEmailAndPassword(email, password);
+        showToast("تم تسجيل الدخول","success");
+      }catch(e){
+        console.error(e);
+        if(
+          e.code === "auth/user-not-found" ||
+          e.code === "auth/wrong-password" ||
+          e.code === "auth/invalid-credential" ||
+          e.code === "auth/invalid-login-credentials"
+        ){
+          showToast("البريد أو كلمة المرور غير صحيحة","error");
+        }else{
+          showToast("تعذر تسجيل الدخول","error");
+        }
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function handleRegister(){
+      const displayName = (document.getElementById("registerName").value || "").trim();
+      const email = (document.getElementById("registerEmail").value || "").trim().toLowerCase();
+      const password = (document.getElementById("registerPassword").value || "").trim();
+
+      if(displayName.length < 2){
+        showToast("أدخل الاسم الكامل","error");
+        return;
+      }
+      if(!email || !email.includes("@")){
+        showToast("أدخل بريدًا صحيحًا","error");
+        return;
+      }
+      if(password.length < 6){
+        showToast("كلمة المرور يجب أن تكون 6 أحرف أو أكثر","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+
+        try{
+          await cred.user.updateProfile({ displayName });
+        }catch(e){}
+
+        await rtdb.ref(`${PATH_USERS}/${uid}`).update({
+          uid,
+          email,
+          displayName,
+          username: randomUsernameFromName(displayName),
+          role: "user",
+          verified: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+
+        showToast("تم إنشاء الحساب بنجاح","success");
+      }catch(e){
+        console.error(e);
+        if(e.code === "auth/email-already-in-use"){
+          showToast("هذا البريد مستخدم بالفعل","error");
+        }else if(e.code === "auth/operation-not-allowed"){
+          showToast("فعّل Email/Password من Firebase Authentication","error");
+        }else{
+          showToast("تعذر إنشاء الحساب","error");
+        }
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function handleForgotPassword(){
+      const email = (document.getElementById("loginEmail").value || "").trim().toLowerCase();
+      if(!email || !email.includes("@")){
+        showToast("أدخل البريد أولاً","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        await auth.sendPasswordResetEmail(email);
+        showToast("تم إرسال رابط تغيير كلمة المرور عبر البريد","success");
+      }catch(e){
+        console.error(e);
+        showToast("تعذر إرسال رابط الاستعادة","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function loadCurrentUserProfile(){
+      currentUser = auth.currentUser;
+      if(!currentUser) return null;
+
+      const snap = await rtdb.ref(`${PATH_USERS}/${currentUser.uid}`).get();
+      const data = snap.val() || null;
+
+      if(!data){
+        currentUserProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || "",
+          username: randomUsernameFromName(currentUser.displayName || "user"),
+          role: "user"
+        };
+
+        await rtdb.ref(`${PATH_USERS}/${currentUser.uid}`).set({
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || "",
+          username: currentUserProfile.username,
+          role: "user",
+          verified: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }else{
+        currentUserProfile = { uid: currentUser.uid, ...data };
+      }
+
+      return currentUserProfile;
+    }
+
+    async function logoutUser(){
+      setLoading(true);
+      try{
+        await auth.signOut();
+        currentUser = null;
+        currentUserProfile = null;
+        setSignedInUI(null, null);
+        showToast("تم تسجيل الخروج","success");
+      }catch(e){
+        console.error(e);
+        showToast("فشل تسجيل الخروج","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function loadStoreSettings(){
+      const snap = await rtdb.ref(PATH_SETTINGS_STORE).get();
+      const v = snap.val() || {};
+      storeSettings = {
+        storeName: v.storeName || "Tofan Store",
+        storeLogoUrl: v.storeLogoUrl || "",
+        deliveryFee: Number(v.deliveryFee || 0)
+      };
+    }
+
+    async function loadData(){
+      const [paymentMethodsSnap] = await Promise.all([
+        rtdb.ref(PATH_SETTINGS_PAYMENT_METHODS).get()
+      ]);
+
+      buildPaymentMethods(paymentMethodsSnap.val() || {});
+      await loadStoreSettings();
+    }
+
+    function goBackGeneral(){
+      if(document.getElementById("finalPaymentView").classList.contains("active")){
+        delayed(() => {
+          document.getElementById("finalPaymentView").classList.remove("active");
+          document.getElementById("checkoutView").classList.add("active");
+          document.getElementById("detailsView").classList.remove("active");
+          setStep(2);
+          updateBottomButton();
+        });
+        return;
+      }
+
+      if(document.getElementById("checkoutView").classList.contains("active")){
+        delayed(() => {
+          document.getElementById("checkoutView").classList.remove("active");
+          document.getElementById("detailsView").classList.add("active");
+          setStep(1);
+          updateBottomButton();
+        });
+        return;
+      }
+
+      backToStore();
+    }
+
+    function backToStore(){
+      setLoading(true);
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 180);
+    }
+
+    function handleAuthState(user){
+      currentUser = user || null;
+
+      if(currentUser){
+        loadCurrentUserProfile()
+          .then((profile) => setSignedInUI(user, profile))
+          .catch(() => setSignedInUI(user, null))
+          .finally(() => setLoading(false));
+      }else{
+        currentUserProfile = null;
+        setSignedInUI(null, null);
+        setLoading(false);
+      }
+    }
+
+    function previewPaymentMethodsOnLoad(){
+      renderPaymentMethods();
+      renderSelectedMethodDetails();
+    }
+
+    async function bootApp(){
+      setLoading(true);
+      try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        restoreCheckoutSelection();
+        await loadData();
+
+        if(!getSelectionItems().length){
+          showToast("لا توجد منتجات محددة","error");
+          setTimeout(() => backToStore(), 700);
+          return;
+        }
+
+        renderDetailsPage();
+        previewPaymentMethodsOnLoad();
+        setStep(1);
+
+        document.getElementById("detailsView").classList.add("active");
+        document.getElementById("checkoutView").classList.remove("active");
+        document.getElementById("finalPaymentView").classList.remove("active");
+
+        updateBottomButton();
+        updateSummaryBox();
+
+        auth.onAuthStateChanged((user) => {
+          handleAuthState(user);
+        });
+      }catch(e){
+        console.error(e);
+        showToast("تعذر تحميل الصفحة","error");
+        setLoading(false);
+      }
+    }
+
+    window.addEventListener("load", bootApp);
+  </script>
+</body>
+</html>
