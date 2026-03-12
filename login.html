@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZERO SHOP - Login / Profile</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+
+    *{box-sizing:border-box}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:#f8f9fa;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent
+    }
+
+    .loader{
+      border:4px solid #f3f3f3;
+      border-top:4px solid #ef4444;
+      border-radius:50%;
+      width:46px;height:46px;
+      animation:spin .8s linear infinite
+    }
+    @keyframes spin{
+      0%{transform:rotate(0)}
+      100%{transform:rotate(360deg)}
+    }
+
+    .toast-notification{animation:slideUp .3s ease-out forwards}
+    @keyframes slideUp{
+      from{transform:translate(-50%,100%);opacity:0}
+      to{transform:translate(-50%,0);opacity:1}
+    }
+
+    .view-section{display:none;min-height:100vh}
+    .view-section.active{display:block}
+
+    .thumb{
+      width:76px;
+      height:76px;
+      object-fit:cover;
+      border-radius:1rem;
+      border:1px solid #e5e7eb;
+      background:#fff
+    }
+
+    .preview-thumb{
+      width:88px;
+      height:88px;
+      object-fit:cover;
+      border-radius:1rem;
+      border:1px solid #e5e7eb;
+      background:#fff
+    }
+
+    .status-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 12px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800
+    }
+
+    .profile-avatar{
+      width:76px;
+      height:76px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:28px;
+      font-weight:900;
+      background:linear-gradient(135deg,#111827,#374151);
+      color:#fff
+    }
+
+    .side-slider{
+      display:flex;
+      overflow-x:auto;
+      gap:10px;
+      scroll-snap-type:x mandatory;
+      padding-bottom:2px
+    }
+    .side-slider::-webkit-scrollbar{display:none}
+    .side-slide{
+      flex:0 0 220px;
+      scroll-snap-align:start
+    }
+    .side-slide img{
+      width:100%;
+      height:170px;
+      object-fit:cover;
+      border-radius:1.2rem;
+      border:1px solid #e5e7eb;
+      background:#fff
+    }
+
+    input,button,select,.rounded-xl,.rounded-2xl,.rounded-3xl{
+      border-radius:2rem!important
+    }
+    textarea{border-radius:1.5rem!important}
+  </style>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body class="bg-gray-50">
+
+  <div id="loadingOverlay" class="fixed inset-0 bg-white/85 backdrop-blur-sm z-[9999] flex items-center justify-center">
+    <div class="flex flex-col items-center">
+      <div class="loader mb-3"></div>
+      <p class="text-red-500 font-bold">جاري التحميل...</p>
+    </div>
+  </div>
+
+  <section id="authView" class="view-section active p-4 pb-10">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <button onclick="window.location.href='index.html'" class="w-10 h-10 bg-white shadow rounded-full flex items-center justify-center">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+        <h2 class="font-bold text-lg">الدخول / إنشاء حساب</h2>
+        <div class="w-10"></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+          <div class="flex gap-2 mb-5">
+            <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-3 bg-red-500 text-white font-bold">تسجيل الدخول</button>
+            <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold">إنشاء حساب</button>
+          </div>
+
+          <div id="loginFormWrap">
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">البريد</label>
+              <input id="loginEmail" type="email" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="example@email.com">
+            </div>
+
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">كلمة المرور</label>
+              <input id="loginPassword" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="********">
+            </div>
+
+            <button onclick="handleLogin()" class="w-full py-3 bg-gray-900 text-white font-bold mt-2">
+              تسجيل الدخول
+            </button>
+
+            <button onclick="handleForgotPassword()" class="w-full py-3 bg-blue-50 text-blue-700 font-bold mt-3">
+              نسيت كلمة المرور
+            </button>
+
+            <div class="bg-gray-50 text-gray-500 px-4 py-3 rounded-[1.5rem] text-sm font-bold mt-4">
+              إذا كان البريد هو بريد الأدمن، سيتم تحويلك إلى لوحة الأدمن.
+            </div>
+          </div>
+
+          <div id="registerFormWrap" class="hidden">
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">الاسم الكامل</label>
+              <input id="registerName" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="اسمك الكامل">
+            </div>
+
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">اسم المستخدم</label>
+              <input id="registerUsername" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="مثال: anwar">
+            </div>
+
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">اليوزر (اختياري)</label>
+              <input id="registerHandle" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="@anwar">
+            </div>
+
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">البريد</label>
+              <input id="registerEmail" type="email" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="example@email.com">
+            </div>
+
+            <div class="mb-3">
+              <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">كلمة المرور</label>
+              <input id="registerPassword" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="6 أحرف أو أكثر">
+            </div>
+
+            <button onclick="handleRegister()" class="w-full py-3 bg-red-500 text-white font-bold mt-2">
+              إنشاء حساب
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+          <h3 class="font-bold mb-3">ملاحظات</h3>
+          <div class="space-y-3 text-sm text-gray-600 font-bold">
+            <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100">
+              المستخدم يستطيع نشر منشور خاص به من ملفه الشخصي بعد تسجيل الدخول.
+            </div>
+            <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100">
+              المنشور يبقى <span class="text-amber-600">معلّق</span> حتى يراجعه الأدمن.
+            </div>
+            <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100">
+              إذا رفض الأدمن المنشور، سيتم حذفه من قاعدة البيانات بعد 24 ساعة.
+            </div>
+            <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100">
+              إذا كان حسابك موثقاً من الأدمن، ستظهر علامة التوثيق في ملفك الشخصي وعلى منشوراتك الموافق عليها.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="profileView" class="view-section p-4 pb-10">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <button onclick="window.location.href='index.html'" class="w-10 h-10 bg-white shadow rounded-full flex items-center justify-center">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+        <h2 class="font-bold text-lg">الملف الشخصي</h2>
+        <button onclick="logoutUser()" class="px-4 py-2 bg-gray-900 text-white font-bold rounded-full">
+          <i class="fas fa-right-from-bracket ml-1"></i> خروج
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+          <div class="flex items-center gap-4">
+            <div id="profileAvatar" class="profile-avatar">U</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 id="profileDisplayName" class="font-black text-lg">-</h3>
+                <span id="profileVerifiedBadge" class="hidden bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-full text-[10px] font-bold">
+                  <i class="fas fa-badge-check ml-1"></i>موثق
+                </span>
+              </div>
+              <div id="profileUsername" class="text-sm text-gray-500 font-bold mt-1">-</div>
+              <div id="profileHandle" class="text-xs text-gray-400 font-bold mt-1">-</div>
+            </div>
+          </div>
+
+          <div class="mt-5 space-y-3">
+            <div class="bg-gray-50 border border-gray-100 rounded-[1.5rem] p-4">
+              <div class="text-xs text-gray-400 font-bold mb-1">البريد</div>
+              <div id="profileEmail" class="font-bold text-sm">-</div>
+            </div>
+
+            <div class="bg-gray-50 border border-gray-100 rounded-[1.5rem] p-4">
+              <div class="text-xs text-gray-400 font-bold mb-1">نوع الحساب</div>
+              <div id="profileRole" class="font-bold text-sm">مستخدم</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 lg:col-span-2">
+          <div class="flex gap-2 mb-4 flex-wrap">
+            <button id="profileTabMainBtn" onclick="switchProfileTab('main')" class="px-4 py-3 bg-red-500 text-white font-bold">بياناتي</button>
+            <button id="profileTabPostsBtn" onclick="switchProfileTab('posts')" class="px-4 py-3 bg-gray-100 text-gray-700 font-bold">منشوراتي</button>
+            <button id="profileTabNewPostBtn" onclick="switchProfileTab('newpost')" class="px-4 py-3 bg-gray-100 text-gray-700 font-bold">إضافة منشور</button>
+          </div>
+
+          <div id="profileMainTab">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">الاسم الكامل</label>
+                <input id="profileEditDisplayName" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+              </div>
+
+              <div>
+                <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">اسم المستخدم</label>
+                <input id="profileEditUsername" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">اليوزر</label>
+                <input id="profileEditHandle" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="@username">
+              </div>
+            </div>
+
+            <button onclick="saveProfileData()" class="w-full py-3 bg-gray-900 text-white font-bold mt-4">
+              حفظ بيانات الملف الشخصي
+            </button>
+
+            <div class="border-t mt-5 pt-5">
+              <h4 class="font-bold mb-3">تغيير كلمة المرور</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input id="currentPasswordInput" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="كلمة المرور الحالية">
+                <input id="newPasswordInput" type="password" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" placeholder="كلمة المرور الجديدة">
+              </div>
+              <button onclick="changeUserPassword()" class="w-full py-3 bg-red-500 text-white font-bold mt-4">
+                تغيير كلمة المرور
+              </button>
+            </div>
+          </div>
+
+          <div id="profilePostsTab" class="hidden">
+            <div id="userPostsList" class="space-y-3"></div>
+          </div>
+
+          <div id="profileNewPostTab" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">عنوان المنشور</label>
+                  <input id="up_title" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">وصف المنتج</label>
+                  <textarea id="up_desc" rows="5" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">السعر</label>
+                    <input id="up_price" type="number" min="0" step="0.01" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">القسم</label>
+                    <select id="up_category" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold"></select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">الدولة</label>
+                  <select id="up_country" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold"></select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">مقدمة الواتساب</label>
+                    <select id="up_whatsappPrefix" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+                      <option value="972">972+</option>
+                      <option value="970">970+</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">رقم الواتساب</label>
+                    <input id="up_whatsappNumber" inputmode="numeric" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold">
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">صور من الجهاز (متعددة)</label>
+                  <input id="up_imagesFiles" type="file" accept="image/*" multiple class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" onchange="handleLocalImagesPreview()">
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold text-gray-500 block mb-1 mr-1">أو روابط صور متعددة (كل رابط بسطر)</label>
+                  <textarea id="up_imagesUrls" rows="6" class="w-full bg-gray-100 border-none py-3 px-4 outline-none text-sm font-bold" style="direction:ltr" oninput="handleLocalImagesPreview()"></textarea>
+                </div>
+
+                <div id="localImagesPreviewWrap" class="hidden">
+                  <label class="text-xs font-bold text-gray-500 block mb-2 mr-1">معاينة الصور</label>
+                  <div id="localImagesPreview" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <button onclick="previewUserPost()" type="button" class="px-4 py-3 bg-gray-900 text-white font-bold">
+                  معاينة
+                </button>
+
+                <div id="userPostPreview" class="bg-gray-50 border border-gray-200 rounded-[1.5rem] p-4 min-h-[160px]"></div>
+              </div>
+            </div>
+
+            <button onclick="submitUserPost()" class="w-full py-4 bg-red-500 text-white font-bold mt-5">
+              إرسال المنشور للمراجعة
+            </button>
+
+            <div class="bg-amber-50 border border-amber-200 text-amber-700 rounded-[1.5rem] p-4 text-sm font-bold mt-4">
+              المنشور لن يظهر في المتجر حتى تتم مراجعته من الأدمن.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnLAY7zQyBy7gUuL9wszt9aEhiJgvRmxI",
+      authDomain: "shop-d52dc.firebaseapp.com",
+      databaseURL: "https://shop-d52dc-default-rtdb.firebaseio.com",
+      projectId: "shop-d52dc",
+      storageBucket: "shop-d52dc.appspot.com",
+      messagingSenderId: "97580537866",
+      appId: "1:97580537866:web:abc46e5a2f527b6300a7f3",
+      measurementId: "G-956RQMBP42"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const rtdb = firebase.database();
+    const storage = firebase.storage();
+    const auth = firebase.auth();
+
+    const PATH_SETTINGS_ADMIN = "settings/admin";
+    const PATH_CATEGORIES = "categories";
+    const PATH_COUNTRIES = "countries";
+    const PATH_USERS = "users";
+    const PATH_COMMUNITY_POSTS = "community_posts";
+    const PATH_VERIFIED_USERS = "verified_users";
+    const ADMIN_SESSION_KEY = "norhan_admin_session";
+
+    let categories = [];
+    let countries = [];
+    let currentUser = null;
+    let currentUserProfile = null;
+    let verifiedUsersMap = {};
+    let currentUserPosts = [];
+    let adminSettingsCache = {
+      email: "homworkhhh76@gmail.com",
+      pinHash: null,
+      mustChange: true
+    };
+    let initialAuthResolved = false;
+    let localPreviewUrls = [];
+
+    function setLoading(on){
+      const el = document.getElementById('loadingOverlay');
+      if(!el) return;
+      on ? el.classList.remove('hidden') : el.classList.add('hidden');
+    }
+
+    function showToast(msg, type = "success"){
+      const t = document.createElement('div');
+      const icons = {
+        success: '<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>',
+        error: '<i class="fa-solid fa-circle-xmark text-rose-400 text-lg"></i>',
+        info: '<i class="fa-solid fa-circle-info text-sky-400 text-lg"></i>'
+      };
+      t.className = "toast-notification fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#111827]/95 backdrop-blur-md text-white px-5 py-3 rounded-full z-[10000] text-sm font-bold flex items-center gap-3 shadow-2xl border border-white/10";
+      t.innerHTML = `${icons[type] || icons.success}<span>${escapeHtml(msg)}</span>`;
+      document.body.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translate(-50%,20px)';
+        setTimeout(() => t.remove(), 300);
+      }, 2500);
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function normalizeUsername(value){
+      return String(value || "").trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_\u0600-\u06FF]/g, "");
+    }
+
+    function normalizeHandle(value){
+      return String(value || "").trim().replace(/\s+/g, "").replace(/^@+/, "").toLowerCase();
+    }
+
+    function normalizeLookup(value){
+      return String(value || "").trim().toLowerCase().replace(/^@/, "");
+    }
+
+    function safeParseJSON(txt, fallback){
+      try{return JSON.parse(txt);}catch{return fallback;}
+    }
+
+    function setActiveView(id){
+      document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      window.scrollTo(0,0);
+    }
+
+    function switchAuthTab(tab){
+      const loginWrap = document.getElementById("loginFormWrap");
+      const registerWrap = document.getElementById("registerFormWrap");
+      const loginBtn = document.getElementById("tabLoginBtn");
+      const registerBtn = document.getElementById("tabRegisterBtn");
+
+      if(tab === "register"){
+        loginWrap.classList.add("hidden");
+        registerWrap.classList.remove("hidden");
+        loginBtn.className = "flex-1 py-3 bg-gray-100 text-gray-700 font-bold";
+        registerBtn.className = "flex-1 py-3 bg-red-500 text-white font-bold";
+      }else{
+        registerWrap.classList.add("hidden");
+        loginWrap.classList.remove("hidden");
+        registerBtn.className = "flex-1 py-3 bg-gray-100 text-gray-700 font-bold";
+        loginBtn.className = "flex-1 py-3 bg-red-500 text-white font-bold";
+      }
+    }
+
+    function switchProfileTab(tab){
+      const main = document.getElementById("profileMainTab");
+      const posts = document.getElementById("profilePostsTab");
+      const newpost = document.getElementById("profileNewPostTab");
+
+      const btnMain = document.getElementById("profileTabMainBtn");
+      const btnPosts = document.getElementById("profileTabPostsBtn");
+      const btnNewPost = document.getElementById("profileTabNewPostBtn");
+
+      [main, posts, newpost].forEach(x => x.classList.add("hidden"));
+      [btnMain, btnPosts, btnNewPost].forEach(x => x.className = "px-4 py-3 bg-gray-100 text-gray-700 font-bold");
+
+      if(tab === "posts"){
+        posts.classList.remove("hidden");
+        btnPosts.className = "px-4 py-3 bg-red-500 text-white font-bold";
+      }else if(tab === "newpost"){
+        newpost.classList.remove("hidden");
+        btnNewPost.className = "px-4 py-3 bg-red-500 text-white font-bold";
+      }else{
+        main.classList.remove("hidden");
+        btnMain.className = "px-4 py-3 bg-red-500 text-white font-bold";
+      }
+    }
+
+    async function sha256(text){
+      const data = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+
+    async function ensureAdminSettings(){
+      const snap = await rtdb.ref(PATH_SETTINGS_ADMIN).get();
+      if(!snap.exists()){
+        const defaultHash = await sha256("0000");
+        const initial = {
+          pinHash: defaultHash,
+          mustChange: true,
+          email: "homworkhhh76@gmail.com",
+          updatedAt: Date.now()
+        };
+        await rtdb.ref(PATH_SETTINGS_ADMIN).set(initial);
+        adminSettingsCache = {...initial};
+        return initial;
+      }
+      const d = snap.val() || {};
+      adminSettingsCache = {
+        pinHash: d.pinHash || null,
+        mustChange: d.mustChange !== false,
+        email: d.email || "homworkhhh76@gmail.com"
+      };
+      return adminSettingsCache;
+    }
+
+    async function uploadFileToStorage(file, folder){
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+      const path = `${folder}/${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`;
+      const ref = storage.ref().child(path);
+      await ref.put(file);
+      return await ref.getDownloadURL();
+    }
+
+    function buildCategories(remoteCats){
+      categories = Object.entries(remoteCats || {}).map(([id,val]) => ({
+        id,
+        name: val?.name || id,
+        enabled: val?.enabled !== false,
+        order: Number(val?.order || 0)
+      })).filter(x => x.enabled !== false).sort((a,b) => (a.order || 0) - (b.order || 0));
+    }
+
+    function buildCountries(remote){
+      countries = Object.entries(remote || {}).map(([code,val]) => ({
+        code,
+        name: val?.name || code,
+        enabled: val?.enabled !== false,
+        order: Number(val?.order || 0)
+      })).filter(x => x.enabled !== false).sort((a,b) => (a.order || 0) - (b.order || 0));
+    }
+
+    async function loadSharedData(){
+      const [catsSnap, countriesSnap, verifiedSnap] = await Promise.all([
+        rtdb.ref(PATH_CATEGORIES).get(),
+        rtdb.ref(PATH_COUNTRIES).get(),
+        rtdb.ref(PATH_VERIFIED_USERS).get()
+      ]);
+
+      buildCategories(catsSnap.val() || {});
+      buildCountries(countriesSnap.val() || {});
+      verifiedUsersMap = verifiedSnap.val() || {};
+
+      populatePostDropdowns();
+    }
+
+    function populatePostDropdowns(){
+      const categorySel = document.getElementById("up_category");
+      const countrySel = document.getElementById("up_country");
+      if(categorySel){
+        categorySel.innerHTML = categories.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} (${escapeHtml(c.id)})</option>`).join('');
+      }
+      if(countrySel){
+        countrySel.innerHTML = `
+          <option value="GLOBAL">عالمي</option>
+          ${countries.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.name)}</option>`).join('')}
+        `;
+      }
+    }
+
+    function clearAdminSession(){
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    }
+
+    async function saveUserProfileRecord(uid, payload){
+      await rtdb.ref(`${PATH_USERS}/${uid}`).update(payload);
+    }
+
+    function clearLocalPreviewUrls(){
+      localPreviewUrls.forEach(url => {
+        try{ URL.revokeObjectURL(url); }catch{}
+      });
+      localPreviewUrls = [];
+    }
+
+    function handleLocalImagesPreview(){
+      const files = [...(document.getElementById("up_imagesFiles").files || [])];
+      const textUrls = String(document.getElementById("up_imagesUrls").value || "")
+        .split("\n").map(x => x.trim()).filter(Boolean);
+
+      clearLocalPreviewUrls();
+
+      const localUrls = files.map(file => {
+        const url = URL.createObjectURL(file);
+        localPreviewUrls.push(url);
+        return url;
+      });
+
+      const combined = [...localUrls, ...textUrls];
+      const wrap = document.getElementById("localImagesPreviewWrap");
+      const box = document.getElementById("localImagesPreview");
+
+      if(!combined.length){
+        wrap.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+
+      wrap.classList.remove("hidden");
+      box.innerHTML = combined.map(src => `
+        <img src="${escapeHtml(src)}" class="preview-thumb" onerror="this.style.display='none'">
+      `).join('');
+    }
+
+    async function handleRegister(){
+      const displayName = (document.getElementById("registerName").value || "").trim();
+      const username = normalizeUsername(document.getElementById("registerUsername").value || "");
+      const userHandle = normalizeHandle(document.getElementById("registerHandle").value || "");
+      const email = (document.getElementById("registerEmail").value || "").trim().toLowerCase();
+      const password = (document.getElementById("registerPassword").value || "").trim();
+
+      if(displayName.length < 2){
+        showToast("أدخل الاسم الكامل","error");
+        return;
+      }
+      if(username.length < 2){
+        showToast("أدخل اسم مستخدم صحيح","error");
+        return;
+      }
+      if(!email || !email.includes("@")){
+        showToast("أدخل بريدًا صحيحًا","error");
+        return;
+      }
+      if(password.length < 6){
+        showToast("كلمة المرور يجب أن تكون 6 أحرف أو أكثر","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const adminSt = await ensureAdminSettings();
+        if((adminSt.email || "").toLowerCase() === email){
+          showToast("هذا البريد مخصص للأدمن، استخدم تسجيل الدخول","error");
+          return;
+        }
+
+        const usersSnap = await rtdb.ref(PATH_USERS).get();
+        const usersObj = usersSnap.val() || {};
+        const allUsers = Object.values(usersObj);
+
+        const usernameExists = allUsers.some(u => normalizeUsername(u?.username || "") === username);
+        if(usernameExists){
+          showToast("اسم المستخدم مستخدم بالفعل","error");
+          return;
+        }
+
+        if(userHandle){
+          const handleExists = allUsers.some(u => normalizeHandle(u?.userHandle || "") === userHandle);
+          if(handleExists){
+            showToast("هذا اليوزر مستخدم بالفعل","error");
+            return;
+          }
+        }
+
+        clearAdminSession();
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+
+        try{
+          await cred.user.updateProfile({ displayName });
+        }catch(e){
+          console.error("updateProfile warning", e);
+        }
+
+        try{
+          await saveUserProfileRecord(uid, {
+            uid,
+            email,
+            displayName,
+            username,
+            userHandle,
+            role: "user",
+            verified: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+        }catch(dbErr){
+          console.error("save profile db error", dbErr);
+        }
+
+        currentUser = cred.user;
+        currentUserProfile = {
+          uid,
+          email,
+          displayName,
+          username,
+          userHandle,
+          role: "user"
+        };
+        currentUserPosts = [];
+
+        showToast("تم إنشاء الحساب بنجاح","success");
+        openProfileView();
+      }catch(e){
+        console.error(e);
+        if(e.code === "auth/email-already-in-use"){
+          showToast("هذا البريد مستخدم بالفعل","error");
+        }else if(e.code === "auth/operation-not-allowed"){
+          showToast("فعّل Email/Password من Firebase Authentication","error");
+        }else if(e.code === "auth/invalid-email"){
+          showToast("البريد غير صالح","error");
+        }else if(e.code === "auth/weak-password"){
+          showToast("كلمة المرور ضعيفة","error");
+        }else{
+          showToast("تعذر إنشاء الحساب","error");
+        }
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function tryAdminLogin(email, password){
+      const st = await ensureAdminSettings();
+      if((st.email || "").toLowerCase() !== email.toLowerCase()) return false;
+
+      const hash = await sha256(password);
+      if(!st.pinHash || hash !== st.pinHash){
+        return "wrong-admin-password";
+      }
+
+      await auth.signOut().catch(()=>{});
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        ok: true,
+        expiresAt: Date.now() + 2 * 60 * 60 * 1000
+      }));
+
+      window.location.href = "admin.html";
+      return true;
+    }
+
+    async function handleLogin(){
+      const email = (document.getElementById("loginEmail").value || "").trim().toLowerCase();
+      const password = (document.getElementById("loginPassword").value || "").trim();
+
+      if(!email || !email.includes("@")){
+        showToast("أدخل البريد بشكل صحيح","error");
+        return;
+      }
+      if(password.length < 4){
+        showToast("أدخل كلمة المرور","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const adminResult = await tryAdminLogin(email, password);
+        if(adminResult === true) return;
+        if(adminResult === "wrong-admin-password"){
+          showToast("كلمة مرور الأدمن خاطئة","error");
+          return;
+        }
+
+        clearAdminSession();
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        await auth.signInWithEmailAndPassword(email, password);
+        await loadCurrentUserProfile();
+        openProfileView();
+        showToast("تم تسجيل الدخول","success");
+      }catch(e){
+        console.error(e);
+        if(
+          e.code === "auth/user-not-found" ||
+          e.code === "auth/wrong-password" ||
+          e.code === "auth/invalid-credential" ||
+          e.code === "auth/invalid-login-credentials"
+        ){
+          showToast("البريد أو كلمة المرور غير صحيحة","error");
+        }else if(e.code === "auth/invalid-email"){
+          showToast("البريد غير صالح","error");
+        }else if(e.code === "auth/too-many-requests"){
+          showToast("تمت محاولات كثيرة، حاول لاحقًا","error");
+        }else{
+          showToast("تعذر تسجيل الدخول","error");
+        }
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function handleForgotPassword(){
+      const email = (document.getElementById("loginEmail").value || "").trim().toLowerCase();
+      if(!email || !email.includes("@")){
+        showToast("أدخل البريد أولاً","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const adminSt = await ensureAdminSettings();
+        if((adminSt.email || "").toLowerCase() === email){
+          showToast("استعادة كلمة مرور الأدمن تتم من لوحة الأدمن","info");
+          return;
+        }
+
+        await auth.sendPasswordResetEmail(email);
+        showToast("تم إرسال رابط تغيير كلمة المرور عبر البريد","success");
+      }catch(e){
+        console.error(e);
+        if(e.code === "auth/user-not-found"){
+          showToast("هذا البريد غير مسجل","error");
+        }else if(e.code === "auth/invalid-email"){
+          showToast("البريد غير صالح","error");
+        }else{
+          showToast("تعذر إرسال رابط الاستعادة","error");
+        }
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function loadCurrentUserProfile(){
+      currentUser = auth.currentUser;
+      if(!currentUser) return null;
+
+      const snap = await rtdb.ref(`${PATH_USERS}/${currentUser.uid}`).get();
+      const data = snap.val() || null;
+
+      if(!data){
+        currentUserProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || "",
+          username: "",
+          userHandle: "",
+          role: "user"
+        };
+
+        try{
+          await rtdb.ref(`${PATH_USERS}/${currentUser.uid}`).set({
+            uid: currentUser.uid,
+            email: currentUser.email || "",
+            displayName: currentUser.displayName || "",
+            username: "",
+            userHandle: "",
+            role: "user",
+            verified: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+        }catch(e){
+          console.error("fallback user profile write failed", e);
+        }
+      }else{
+        currentUserProfile = { uid: currentUser.uid, ...data };
+      }
+
+      try{
+        const postsSnap = await rtdb.ref(PATH_COMMUNITY_POSTS).get();
+        const postsObj = postsSnap.val() || {};
+        currentUserPosts = Object.entries(postsObj)
+          .map(([key,val]) => ({ key, ...val }))
+          .filter(post => String(post.userId || "") === String(currentUser.uid))
+          .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+      }catch(e){
+        console.error("posts load error", e);
+        currentUserPosts = [];
+      }
+
+      return currentUserProfile;
+    }
+
+    function openProfileView(){
+      if(!currentUserProfile) return;
+      setActiveView("profileView");
+      renderProfile();
+      switchProfileTab('main');
+    }
+
+    function renderProfile(){
+      if(!currentUserProfile) return;
+
+      const verified = !!verifiedUsersMap[normalizeLookup(currentUserProfile.userHandle || currentUserProfile.username || currentUserProfile.displayName || "")];
+      const initials = String(currentUserProfile.displayName || currentUserProfile.username || "U").trim().charAt(0).toUpperCase() || "U";
+
+      document.getElementById("profileAvatar").textContent = initials;
+      document.getElementById("profileDisplayName").textContent = currentUserProfile.displayName || "-";
+      document.getElementById("profileUsername").textContent = currentUserProfile.username ? `اسم المستخدم: ${currentUserProfile.username}` : "-";
+      document.getElementById("profileHandle").textContent = currentUserProfile.userHandle ? `@${currentUserProfile.userHandle}` : "@-";
+      document.getElementById("profileEmail").textContent = currentUserProfile.email || "-";
+      document.getElementById("profileRole").textContent = currentUserProfile.role === "admin" ? "أدمن" : "مستخدم";
+
+      document.getElementById("profileEditDisplayName").value = currentUserProfile.displayName || "";
+      document.getElementById("profileEditUsername").value = currentUserProfile.username || "";
+      document.getElementById("profileEditHandle").value = currentUserProfile.userHandle ? `@${currentUserProfile.userHandle}` : "";
+
+      document.getElementById("profileVerifiedBadge").classList.toggle("hidden", !verified);
+
+      renderUserPosts();
+    }
+
+    function getStatusBadgeHtml(status){
+      if(status === "approved"){
+        return `<span class="status-badge bg-green-50 text-green-700 border border-green-200"><i class="fas fa-circle-check"></i>تمت الموافقة</span>`;
+      }
+      if(status === "rejected"){
+        return `<span class="status-badge bg-red-50 text-red-700 border border-red-200"><i class="fas fa-circle-xmark"></i>مرفوض</span>`;
+      }
+      return `<span class="status-badge bg-amber-50 text-amber-700 border border-amber-200"><i class="fas fa-clock"></i>معلق</span>`;
+    }
+
+    function renderUserPosts(){
+      const box = document.getElementById("userPostsList");
+      const verified = !!verifiedUsersMap[normalizeLookup(currentUserProfile?.userHandle || currentUserProfile?.username || currentUserProfile?.displayName || "")];
+
+      box.innerHTML = currentUserPosts.map(post => `
+        <div class="bg-gray-50 border border-gray-100 rounded-[2rem] p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <img src="${escapeHtml((post.images || [])[0] || 'https://via.placeholder.com/140?text=Post')}" class="w-16 h-16 object-cover rounded-[1rem] border bg-white">
+              <div>
+                <div class="font-bold text-sm flex items-center gap-2">
+                  <span>${escapeHtml(post.title || "منشور")}</span>
+                  ${(verified && post.approvalStatus === "approved") || post.verifiedSnapshot ? '<span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-full text-[10px] font-bold">موثق</span>' : ''}
+                </div>
+                <div class="mt-2">${getStatusBadgeHtml(post.approvalStatus || "pending")}</div>
+                <div class="text-[11px] text-gray-500 mt-2 space-y-1">
+                  <div>القسم: <span class="font-bold">${escapeHtml(post.categoryId || "-")}</span></div>
+                  <div>الدولة: <span class="font-bold">${escapeHtml(post.countryCode || "GLOBAL")}</span></div>
+                  <div>السعر: <span class="font-bold">${Number(post.price || 0).toFixed(2)} ₪</span></div>
+                  ${post.rejectDeleteAt ? `<div>يُحذف تلقائياً: <span class="font-bold">${new Date(post.rejectDeleteAt).toLocaleString('ar')}</span></div>` : ``}
+                </div>
+              </div>
+            </div>
+            ${post.approvalStatus !== "approved" ? `
+              <button onclick="deleteOwnPost('${post.key}')" class="px-3 py-2 bg-red-50 text-red-600 font-bold rounded-full text-xs">
+                حذف
+              </button>
+            ` : ``}
+          </div>
+
+          <div class="mt-3 text-sm text-gray-700 whitespace-pre-line">${escapeHtml(post.desc || "")}</div>
+
+          ${(post.images || []).length > 0 ? `
+            <div class="side-slider pt-3">
+              ${(post.images || []).map(img => `
+                <div class="side-slide">
+                  <img src="${escapeHtml(img)}" onerror="this.style.display='none'">
+                </div>
+              `).join('')}
+            </div>
+          ` : ``}
+        </div>
+      `).join('') || `<div class="text-center text-gray-400 py-8 font-bold">لا توجد منشورات بعد</div>`;
+    }
+
+    async function saveProfileData(){
+      if(!currentUser || !currentUserProfile) return;
+
+      const displayName = (document.getElementById("profileEditDisplayName").value || "").trim();
+      const username = normalizeUsername(document.getElementById("profileEditUsername").value || "");
+      const userHandle = normalizeHandle(document.getElementById("profileEditHandle").value || "");
+
+      if(displayName.length < 2){
+        showToast("أدخل الاسم الكامل","error");
+        return;
+      }
+      if(username.length < 2){
+        showToast("اسم المستخدم غير صحيح","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const usersSnap = await rtdb.ref(PATH_USERS).get();
+        const usersObj = usersSnap.val() || {};
+        const allUsers = Object.entries(usersObj).map(([key,val]) => ({key, ...val}));
+
+        const usernameTaken = allUsers.some(u => u.key !== currentUser.uid && normalizeUsername(u.username || "") === username);
+        if(usernameTaken){
+          showToast("اسم المستخدم مستخدم بالفعل","error");
+          return;
+        }
+
+        if(userHandle){
+          const handleTaken = allUsers.some(u => u.key !== currentUser.uid && normalizeHandle(u.userHandle || "") === userHandle);
+          if(handleTaken){
+            showToast("هذا اليوزر مستخدم بالفعل","error");
+            return;
+          }
+        }
+
+        try{
+          await currentUser.updateProfile({ displayName });
+        }catch(e){
+          console.error("update profile warning", e);
+        }
+
+        await rtdb.ref(`${PATH_USERS}/${currentUser.uid}`).update({
+          displayName,
+          username,
+          userHandle,
+          updatedAt: Date.now()
+        });
+
+        currentUserProfile.displayName = displayName;
+        currentUserProfile.username = username;
+        currentUserProfile.userHandle = userHandle;
+
+        showToast("تم حفظ بيانات الملف الشخصي","success");
+        renderProfile();
+      }catch(e){
+        console.error(e);
+        showToast("فشل حفظ البيانات","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function changeUserPassword(){
+      if(!currentUser) return;
+
+      const currentPassword = (document.getElementById("currentPasswordInput").value || "").trim();
+      const newPassword = (document.getElementById("newPasswordInput").value || "").trim();
+
+      if(currentPassword.length < 6){
+        showToast("أدخل كلمة المرور الحالية","error");
+        return;
+      }
+      if(newPassword.length < 6){
+        showToast("كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أكثر","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+        await currentUser.reauthenticateWithCredential(credential);
+        await currentUser.updatePassword(newPassword);
+
+        document.getElementById("currentPasswordInput").value = "";
+        document.getElementById("newPasswordInput").value = "";
+        showToast("تم تغيير كلمة المرور","success");
+      }catch(e){
+        console.error(e);
+        showToast("فشل تغيير كلمة المرور، تأكد من الكلمة الحالية","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    function previewUserPost(){
+      const title = document.getElementById("up_title").value || "";
+      const desc = document.getElementById("up_desc").value || "";
+      const price = Number(document.getElementById("up_price").value || 0);
+
+      const files = [...(document.getElementById("up_imagesFiles").files || [])];
+      const fileUrls = files.map(file => URL.createObjectURL(file));
+      const textUrls = String(document.getElementById("up_imagesUrls").value || "")
+        .split("\n").map(x => x.trim()).filter(Boolean);
+      const images = [...fileUrls, ...textUrls];
+
+      const box = document.getElementById("userPostPreview");
+
+      box.innerHTML = `
+        <div class="bg-white border border-gray-200 rounded-[1.5rem] p-4">
+          ${images.length ? `
+            <div class="side-slider pb-2 mb-3">
+              ${images.map(img => `
+                <div class="side-slide">
+                  <img src="${escapeHtml(img)}" onerror="this.style.display='none'">
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div class="text-xs text-gray-400 font-bold mb-3">لا توجد صور بعد</div>`}
+          <div class="font-bold text-base">${escapeHtml(title || "عنوان المنشور")}</div>
+          <div class="text-red-600 font-bold mt-1">${price > 0 ? price.toFixed(2) + " ₪" : "بدون سعر"}</div>
+          <div class="text-sm text-gray-600 whitespace-pre-line mt-2">${escapeHtml(desc || "الوصف سيظهر هنا")}</div>
+          <div class="mt-3 inline-flex bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2 rounded-full text-xs font-bold">
+            سيتم إرساله للمراجعة
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        fileUrls.forEach(url => {
+          try{ URL.revokeObjectURL(url); }catch{}
+        });
+      }, 2000);
+    }
+
+    async function submitUserPost(){
+      if(!currentUser || !currentUserProfile){
+        showToast("يجب تسجيل الدخول أولاً","error");
+        return;
+      }
+
+      const title = (document.getElementById("up_title").value || "").trim();
+      const desc = (document.getElementById("up_desc").value || "").trim();
+      const price = Number(document.getElementById("up_price").value || 0);
+      const categoryId = document.getElementById("up_category").value || "";
+      const countryCode = document.getElementById("up_country").value || "GLOBAL";
+      const whatsappPrefix = document.getElementById("up_whatsappPrefix").value || "972";
+      const whatsappNumber = (document.getElementById("up_whatsappNumber").value || "").replace(/\D/g, "");
+      const textareaImages = String(document.getElementById("up_imagesUrls").value || "")
+        .split("\n").map(x => x.trim()).filter(Boolean);
+      const files = [...(document.getElementById("up_imagesFiles").files || [])];
+
+      if(title.length < 2){
+        showToast("عنوان المنشور مطلوب","error");
+        return;
+      }
+      if(!categoryId){
+        showToast("اختر القسم","error");
+        return;
+      }
+      if(whatsappNumber.length < 7){
+        showToast("رقم الواتساب غير صحيح","error");
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const uploadedImages = [];
+        for(const file of files){
+          uploadedImages.push(await uploadFileToStorage(file, "community_posts"));
+        }
+
+        const images = [...uploadedImages, ...textareaImages];
+        if(!images.length){
+          showToast("أضف صورة واحدة على الأقل","error");
+          setLoading(false);
+          return;
+        }
+
+        const verifyKey = normalizeLookup(currentUserProfile.userHandle || currentUserProfile.username || currentUserProfile.displayName || "");
+        const verified = !!verifiedUsersMap[verifyKey];
+
+        const data = {
+          source: "user",
+          userId: currentUser.uid,
+          email: currentUserProfile.email || currentUser.email || "",
+          displayName: currentUserProfile.displayName || "",
+          username: currentUserProfile.username || "",
+          userHandle: currentUserProfile.userHandle || "",
+          verifiedSnapshot: verified,
+          title,
+          desc,
+          price,
+          categoryId,
+          countryCode,
+          images,
+          detailsMode: "whatsapp",
+          whatsappPrefix,
+          whatsappNumber,
+          approvalStatus: "pending",
+          rejectDeleteAt: 0,
+          reviewedAt: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        await rtdb.ref(PATH_COMMUNITY_POSTS).push(data);
+
+        document.getElementById("up_title").value = "";
+        document.getElementById("up_desc").value = "";
+        document.getElementById("up_price").value = "";
+        document.getElementById("up_imagesUrls").value = "";
+        document.getElementById("up_imagesFiles").value = "";
+        document.getElementById("up_whatsappNumber").value = "";
+        document.getElementById("userPostPreview").innerHTML = "";
+        document.getElementById("localImagesPreviewWrap").classList.add("hidden");
+        document.getElementById("localImagesPreview").innerHTML = "";
+        clearLocalPreviewUrls();
+
+        showToast("تم إرسال المنشور للمراجعة","success");
+        await loadCurrentUserProfile();
+        renderProfile();
+        switchProfileTab('posts');
+      }catch(e){
+        console.error(e);
+        showToast("فشل إرسال المنشور","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function deleteOwnPost(key){
+      if(!confirm("حذف المنشور؟")) return;
+      setLoading(true);
+      try{
+        await rtdb.ref(`${PATH_COMMUNITY_POSTS}/${key}`).remove();
+        showToast("تم حذف المنشور","success");
+        await loadCurrentUserProfile();
+        renderProfile();
+      }catch(e){
+        console.error(e);
+        showToast("فشل حذف المنشور","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function logoutUser(){
+      setLoading(true);
+      try{
+        clearAdminSession();
+        await auth.signOut();
+        currentUser = null;
+        currentUserProfile = null;
+        currentUserPosts = [];
+        clearLocalPreviewUrls();
+        setActiveView("authView");
+        showToast("تم تسجيل الخروج","success");
+      }catch(e){
+        console.error(e);
+        showToast("فشل تسجيل الخروج","error");
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    function handleAuthState(user){
+      currentUser = user || null;
+
+      if(currentUser){
+        clearAdminSession();
+        loadCurrentUserProfile()
+          .then(() => openProfileView())
+          .catch(err => {
+            console.error(err);
+            setActiveView("authView");
+          })
+          .finally(() => setLoading(false));
+        return;
+      }
+
+      const adminSession = safeParseJSON(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null", null);
+      if(adminSession && adminSession.expiresAt && Date.now() < adminSession.expiresAt){
+        window.location.href = "admin.html";
+        return;
+      }
+
+      setActiveView("authView");
+      setLoading(false);
+    }
+
+    async function bootApp(){
+      setLoading(true);
+      try{
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        await ensureAdminSettings();
+        await loadSharedData();
+
+        auth.onAuthStateChanged((user) => {
+          if(!initialAuthResolved){
+            initialAuthResolved = true;
+          }
+          handleAuthState(user);
+        });
+      }catch(e){
+        console.error(e);
+        setLoading(false);
+        showToast("تعذر تشغيل الصفحة","error");
+      }
+    }
+
+    window.addEventListener("load", bootApp);
+    window.addEventListener("beforeunload", clearLocalPreviewUrls);
+  </script>
+</body>
+</html>
