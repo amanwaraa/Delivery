@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tofan Store | متجر طوفان</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    :root{
+      --primary:#14454d;
+      --accent:#f37021;
+      --soft:#f3f6f8;
+      --line:#e8edf2;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:#f7f8fa;
+      overflow-x:hidden;
+      color:#1f2937;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .hidden-scrollbar::-webkit-scrollbar{display:none}
+    .hidden-scrollbar{scrollbar-width:none}
+
+    .top-loading{
+      position:fixed;
+      top:0;
+      right:0;
+      height:3px;
+      width:0;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+      z-index:9999;
+      transition:width .3s ease;
+    }
+
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      display:none;
+      z-index:2100;
+      backdrop-filter:blur(3px);
+    }
+
+    .sidebar{
+      position:fixed;
+      top:0;
+      right:-100%;
+      width:290px;
+      height:100%;
+      background:#fff;
+      z-index:2200;
+      transition:.35s ease;
+      box-shadow:-10px 0 30px rgba(0,0,0,.12);
+      overflow-y:auto;
+    }
+    html[dir="ltr"] .sidebar{
+      right:auto;
+      left:-100%;
+      box-shadow:10px 0 30px rgba(0,0,0,.12);
+    }
+    .sidebar.open{right:0}
+    html[dir="ltr"] .sidebar.open{left:0;right:auto}
+
+    .top-pane{
+      position:fixed;
+      top:-100%;
+      left:0;
+      width:100%;
+      height:76%;
+      background:#fff;
+      z-index:2150;
+      border-radius:0 0 24px 24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.12);
+      transition:top .33s ease;
+    }
+    .top-pane.active{top:0}
+
+    .bottom-pane{
+      position:fixed;
+      bottom:-100%;
+      left:0;
+      width:100%;
+      height:80%;
+      background:#fff;
+      z-index:2150;
+      border-radius:24px 24px 0 0;
+      box-shadow:0 -10px 30px rgba(0,0,0,.12);
+      transition:transform .33s ease;
+    }
+    .bottom-pane.active{transform:translateY(-100%)}
+
+    .popup-sheet{
+      position:fixed;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%) scale(.96);
+      width:min(92vw,680px);
+      max-height:80vh;
+      overflow:auto;
+      background:#fff;
+      border-radius:24px;
+      box-shadow:0 20px 60px rgba(0,0,0,.18);
+      z-index:2300;
+      opacity:0;
+      pointer-events:none;
+      transition:.22s ease;
+    }
+    .popup-sheet.active{
+      opacity:1;
+      pointer-events:auto;
+      transform:translate(-50%,-50%) scale(1);
+    }
+
+    .badge{
+      position:absolute;
+      top:-5px;
+      right:-5px;
+      background:var(--accent);
+      color:#fff;
+      font-size:10px;
+      width:18px;
+      height:18px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      border:2px solid #fff;
+    }
+    html[dir="ltr"] .badge{right:auto;left:-5px}
+
+    .header{
+      background:#fff;
+      position:sticky;
+      top:0;
+      z-index:1900;
+      box-shadow:0 1px 10px rgba(0,0,0,.04);
+      padding:10px 14px;
+    }
+
+    .header-row{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      min-height:42px;
+    }
+
+    .header-left,
+    .header-right{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      z-index:3;
+      min-width:82px;
+      transition:transform .25s ease;
+    }
+
+    .header-center{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:2;
+      transition:transform .25s ease, opacity .25s ease;
+      pointer-events:none;
+    }
+
+    .header-logo-shell{
+      position:relative;
+      width:94px;
+      height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .header-center img{
+      height:34px;
+      max-width:94px;
+      object-fit:contain;
+      display:block;
+      opacity:0;
+      transition:opacity .3s ease;
+    }
+    .header-center img.logo-loaded{
+      opacity:1;
+    }
+
+    .icon-btn{
+      background:transparent;
+      border:none;
+      padding:0;
+      margin:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+    }
+
+    .lang-btn{
+      background:#f3f4f6;
+      border:none;
+      border-radius:10px;
+      padding:5px 10px;
+      font-size:12px;
+      font-weight:800;
+      color:#4b5563;
+      cursor:pointer;
+    }
+
+    .search-wrap{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .search-shell{
+      width:0;
+      opacity:0;
+      overflow:hidden;
+      transition:width .25s ease, opacity .2s ease;
+    }
+    .search-shell.open{
+      width:135px;
+      opacity:1;
+    }
+
+    .search-input{
+      width:100%;
+      height:34px;
+      border:none;
+      outline:none;
+      background:#f3f4f6;
+      border-radius:999px;
+      padding:0 12px;
+      font-size:12px;
+      font-weight:700;
+      color:#111827;
+    }
+
+    .header-row.search-active .header-right{
+      transform:translateX(-16px);
+    }
+    .header-row.search-active .header-center{
+      transform:translateX(-50%) translateX(-22px);
+    }
+
+    html[dir="ltr"] .header-row.search-active .header-right{
+      transform:translateX(16px);
+    }
+    html[dir="ltr"] .header-row.search-active .header-center{
+      transform:translateX(-50%) translateX(22px);
+    }
+
+    .search-results-box{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      box-shadow:0 10px 28px rgba(0,0,0,.08);
+      padding:10px;
+      margin:8px 14px 0;
+      display:none;
+      position:relative;
+      z-index:1800;
+    }
+
+    .hero-wrap,
+    .extra-banner-wrap{
+      position:relative;
+      overflow:hidden;
+      background:#eef2f7;
+      min-height:160px;
+    }
+    .hero-wrap img,
+    .extra-banner-wrap img{
+      width:100%;
+      display:block;
+      object-fit:cover;
+    }
+
+    .section-title-line{
+      height:1px;
+      background:#e5e7eb;
+      flex:1;
+    }
+
+    .catSwiper{overflow:hidden}
+
+    .cat-icon-wrapper{
+      width:76px;
+      height:76px;
+      background:#fff;
+      border:1px solid #eef2f6;
+      border-radius:20px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--primary);
+      transition:.35s ease;
+      box-shadow:0 4px 12px rgba(0,0,0,.03);
+      overflow:hidden;
+    }
+    .cat-icon-wrapper img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .cat-card:hover .cat-icon-wrapper{
+      background:var(--primary);
+      color:#fff;
+      transform:translateX(-5px);
+    }
+    html[dir="ltr"] .cat-card:hover .cat-icon-wrapper{
+      transform:translateX(5px);
+    }
+
+    .swiper-pagination-bullet{
+      width:18px !important;
+      height:4px !important;
+      border-radius:999px !important;
+      background:#cbd5e1 !important;
+      opacity:1 !important;
+      transition:.25s ease !important;
+    }
+    .swiper-pagination-bullet-active{
+      width:34px !important;
+      background:var(--primary) !important;
+    }
+
+    .rounded-banner{
+      overflow:hidden;
+      background:#fff;
+      border:none;
+      border-radius:0;
+      box-shadow:none;
+    }
+
+    .product-card{
+      background:#fff;
+      border:1px solid #eef2f6;
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 6px 18px rgba(0,0,0,.04);
+      transition:.28s ease;
+      position:relative;
+      opacity:0;
+      transform:translateY(28px);
+    }
+    .product-card.visible{
+      opacity:1;
+      transform:translateY(0);
+    }
+    .product-card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 16px 30px rgba(0,0,0,.08);
+    }
+
+    .img-container{
+      position:relative;
+      aspect-ratio:1/1.08;
+      overflow:hidden;
+      background:#f3f4f6;
+    }
+    .img-container img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .front-img,.back-img{
+      position:absolute;
+      inset:0;
+      transition:opacity .4s ease, transform .4s ease;
+    }
+    .back-img{
+      opacity:0;
+      transform:scale(1.03);
+    }
+    @media (hover:hover){
+      .product-card:hover .back-img{
+        opacity:1;
+        transform:scale(1);
+      }
+      .product-card:hover .front-img{
+        opacity:0;
+      }
+    }
+    .product-card.touch-active .back-img{
+      opacity:1;
+      transform:scale(1);
+    }
+    .product-card.touch-active .front-img{
+      opacity:0;
+    }
+
+    .product-watermark{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      z-index:3;
+    }
+    .product-watermark img{
+      width:74px;
+      height:74px;
+      object-fit:contain;
+      opacity:.11;
+      filter:drop-shadow(0 6px 18px rgba(0,0,0,.16));
+    }
+
+    .product-image-loader,
+    .banner-image-loader,
+    .logo-image-loader{
+      position:absolute;
+      inset:0;
+      background:linear-gradient(90deg,#f1f5f9 25%,#e5e7eb 37%,#f1f5f9 63%);
+      background-size:400% 100%;
+      animation:shimmer 1.2s infinite linear;
+      z-index:2;
+    }
+
+    .wish-btn{
+      position:absolute;
+      top:10px;
+      right:10px;
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      background:rgba(255,255,255,.92);
+      backdrop-filter:blur(6px);
+      box-shadow:0 6px 16px rgba(0,0,0,.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:4;
+      border:none;
+      cursor:pointer;
+    }
+    html[dir="ltr"] .wish-btn{
+      right:auto;
+      left:10px;
+    }
+
+    .discount-badge{
+      position:absolute;
+      top:10px;
+      left:10px;
+      min-width:54px;
+      height:28px;
+      padding:0 12px;
+      border-radius:999px;
+      background:var(--accent);
+      color:#fff;
+      z-index:4;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:900;
+      box-shadow:0 6px 16px rgba(243,112,33,.26);
+    }
+    html[dir="ltr"] .discount-badge{
+      left:auto;
+      right:10px;
+    }
+
+    .hollow-cart-btn{
+      width:100%;
+      height:42px;
+      border-radius:15px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:.2s ease;
+      cursor:pointer;
+      font-weight:800;
+      border:2px solid var(--primary);
+      color:var(--primary);
+      background:transparent;
+    }
+
+    .empty-box{
+      background:#fff;
+      border:1px dashed #dbe3eb;
+      border-radius:24px;
+      padding:24px;
+      text-align:center;
+      color:#94a3b8;
+      font-weight:700;
+    }
+
+    .dashed-sep{border-top:1px dashed #d1d5db}
+
+    .auth-chip{
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:12px;
+      font-weight:800;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      transition:.2s ease;
+      width:100%;
+      justify-content:space-between;
+    }
+
+    .bottom-nav{
+      position:fixed;
+      bottom:0;
+      width:100%;
+      background:rgba(255,255,255,.95);
+      backdrop-filter:blur(10px);
+      border-top:1px solid #edf2f7;
+      display:flex;
+      justify-content:space-around;
+      padding:12px 6px calc(12px + env(safe-area-inset-bottom));
+      z-index:2000;
+      box-shadow:0 -8px 24px rgba(0,0,0,.06);
+    }
+
+    .cart-item-check{
+      width:18px;
+      height:18px;
+      accent-color:var(--primary);
+    }
+
+    .cart-checkout-bar{
+      position:absolute;
+      bottom:10px;
+      left:0;
+      width:100%;
+      padding:0 14px calc(8px + env(safe-area-inset-bottom));
+      background:#fff;
+    }
+
+    .primary-btn,.secondary-btn{
+      width:100%;
+      border-radius:16px;
+      padding:13px 16px;
+      font-weight:900;
+      cursor:pointer;
+      border:none;
+    }
+    .primary-btn{
+      background:var(--primary);
+      color:#fff;
+      box-shadow:0 10px 22px rgba(20,69,77,.18);
+    }
+    .secondary-btn{
+      background:#f8fafc;
+      color:#334155;
+      border:1px solid #e5e7eb;
+    }
+
+    .toast{
+      position:fixed;
+      bottom:90px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#111827;
+      color:#fff;
+      border-radius:999px;
+      padding:12px 18px;
+      z-index:9999;
+      font-size:13px;
+      font-weight:800;
+      box-shadow:0 12px 32px rgba(0,0,0,.16);
+      animation:toastUp .22s ease;
+      white-space:nowrap;
+      max-width:90%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .section-slider{position:relative}
+    .section-slider .swiper-button-prev,
+    .section-slider .swiper-button-next{
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      background:rgba(17,24,39,.8);
+      color:#fff;
+    }
+    .section-slider .swiper-button-prev:after,
+    .section-slider .swiper-button-next:after{
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .hero-hidden{display:none !important}
+
+    .price-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:4px;
+      margin-bottom:8px;
+      flex-wrap:wrap;
+    }
+    .old-price{
+      font-size:13px;
+      color:#b9c0c8;
+      text-decoration:line-through;
+      font-weight:800;
+    }
+    .new-price{
+      font-size:16px;
+      color:var(--primary);
+      font-weight:900;
+    }
+
+    @keyframes toastUp{
+      from{opacity:0;transform:translate(-50%,18px)}
+      to{opacity:1;transform:translate(-50%,0)}
+    }
+
+    @keyframes shimmer{
+      0%{background-position:100% 0}
+      100%{background-position:-100% 0}
+    }
+
+    @media (max-width:420px){
+      .search-shell.open{width:118px}
+      .header-center img{height:32px}
+      .header-left,.header-right{gap:10px;min-width:72px}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="topLoading" class="top-loading"></div>
+  <div id="overlay" class="overlay" onclick="closeAll()"></div>
+
+  <aside id="sidebar-menu" class="sidebar p-6 flex flex-col">
+    <div class="flex justify-between items-center mb-8">
+      <div class="flex items-center gap-3">
+        <img id="sidebarLogo" src="" class="h-10 object-contain" alt="logo">
+        <div>
+          <div id="sidebarStoreName" class="font-black text-base text-[#14454d]">متجر طوفان</div>
+          <div class="text-[11px] text-gray-400 font-bold">TOFAN STORE</div>
+        </div>
+      </div>
+      <button onclick="closeAll()" class="text-3xl text-gray-300">&times;</button>
+    </div>
+
+    <div id="sidebarUserBox" class="mb-6"></div>
+
+    <div class="space-y-3 mb-5">
+      <button class="auth-chip" onclick="goOrderPage()">
+        <span class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#14454d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <span id="sidebarProfileText">الحساب والطلبات</span>
+        </span>
+        <span class="text-gray-400 text-xs font-bold">فتح</span>
+      </button>
+
+      <button class="auth-chip" onclick="openTopPane('cart')">
+        <span class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#14454d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          <span data-i18n="cart">السلة</span>
+        </span>
+        <span id="sidebarCartCount" class="text-gray-400 text-xs font-bold">0</span>
+      </button>
+
+      <button class="auth-chip" onclick="openBottomPane('wish')">
+        <span class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#14454d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+          <span data-i18n="wish">الأمنيات</span>
+        </span>
+        <span id="sidebarWishCount" class="text-gray-400 text-xs font-bold">0</span>
+      </button>
+
+      <button class="auth-chip" onclick="window.location.href='admin.html'">
+        <span class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#14454d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35A1.724 1.724 0 005.38 7.753c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"></path><path stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          <span>الإعدادات</span>
+        </span>
+        <span class="text-gray-400 text-xs font-bold">فتح</span>
+      </button>
+    </div>
+
+    <div id="sidebarDynamicMenuWrap" class="mb-5"></div>
+
+    <div class="dashed-sep my-5"></div>
+
+    <div>
+      <div class="text-sm font-black text-[#14454d] mb-4" data-i18n="cat-title">أقسام المتجر</div>
+      <nav id="sidebarCategories" class="flex flex-col gap-4 text-sm font-bold text-gray-600"></nav>
+    </div>
+  </aside>
+
+  <header class="header" id="siteHeader">
+    <div class="header-row" id="headerRow">
+      <div class="header-left">
+        <button class="icon-btn" type="button" onclick="openSidebar()">
+          <svg class="w-7 h-7 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+
+        <button class="lang-btn" type="button" onclick="toggleLang()" id="lang-btn">E</button>
+      </div>
+
+      <div class="header-center">
+        <div class="header-logo-shell">
+          <div class="logo-image-loader" id="headerLogoLoader"></div>
+          <img id="headerLogo" src="" alt="Logo">
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="icon-btn relative" type="button" onclick="openTopPane('cart')">
+          <svg class="w-7 h-7 text-[#14454d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+          <span id="cart-badge-header" class="badge">0</span>
+        </button>
+
+        <div class="search-wrap">
+          <button class="icon-btn" type="button" onclick="toggleSearchBar(event)">
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </button>
+
+          <div id="searchShell" class="search-shell">
+            <input id="searchInput" type="text" class="search-input" placeholder="ابحث داخل الموقع..." oninput="performSearch(this.value)" onclick="event.stopPropagation()">
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="searchResultsBox" class="search-results-box"></div>
+
+  <main class="pb-28">
+    <section id="heroSection" class="w-full mb-6">
+      <div class="hero-wrap">
+        <div class="banner-image-loader" id="topBannerLoader"></div>
+        <img id="topBanner" src="" alt="Offer banner" loading="eager" decoding="async">
+      </div>
+    </section>
+
+    <section id="topDynamicSections" class="mb-6"></section>
+
+    <section class="px-4 mb-10">
+      <div class="flex items-center justify-center gap-4 mb-8">
+        <div class="section-title-line"></div>
+        <h2 class="font-black text-[#14454d] text-lg" data-i18n="cat-title">أقسام المتجر</h2>
+        <div class="section-title-line"></div>
+      </div>
+
+      <div class="swiper catSwiper">
+        <div class="swiper-wrapper" id="categories-swiper-wrapper"></div>
+        <div class="swiper-pagination !static mt-8"></div>
+      </div>
+    </section>
+
+    <section id="afterCategoriesSections" class="mb-6"></section>
+
+    <section class="px-4">
+      <div id="products-sections"></div>
+    </section>
+
+    <section id="bottomDynamicSections" class="mb-6"></section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="flex flex-col items-center gap-1 text-[#14454d]" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+      <span class="text-[10px] font-bold" data-i18n="home">الرئيسية</span>
+    </button>
+
+    <button class="flex flex-col items-center gap-1 text-gray-400 relative" onclick="openTopPane('cart')">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+      <span id="cart-badge-bottom" class="badge">0</span>
+      <span class="text-[10px]" data-i18n="cart">السلة</span>
+    </button>
+
+    <button class="flex flex-col items-center gap-1 text-gray-400 relative" onclick="openBottomPane('wish')">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+      <span id="wish-badge" class="badge">0</span>
+      <span class="text-[10px]" data-i18n="wish">الأمنيات</span>
+    </button>
+
+    <button class="flex flex-col items-center gap-1 text-gray-400" onclick="goOrderPage()">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+      <span class="text-[10px]" data-i18n="account-orders">الحساب</span>
+    </button>
+  </nav>
+
+  <div id="cart-pane" class="top-pane p-4 sm:p-5">
+    <div class="flex justify-between items-center mb-3 border-b pb-3">
+      <h3 class="font-black text-lg text-[#14454d]" data-i18n="cart-header">سلة المشتريات</h3>
+      <button onclick="closeAll()" class="text-3xl text-gray-300 leading-none">&times;</button>
+    </div>
+
+    <div id="cart-content" class="h-[62%] overflow-y-auto space-y-4 pr-1 hidden-scrollbar pb-4"></div>
+
+    <div class="cart-checkout-bar space-y-2">
+      <div class="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 flex items-center justify-between">
+        <span class="text-sm text-gray-500 font-bold" data-i18n="selected-total">الإجمالي المحدد</span>
+        <span id="cart-total" class="font-black text-[#14454d] text-lg">0 ₪</span>
+      </div>
+      <button class="primary-btn" onclick="checkoutSelectedCart()" data-i18n="buy-selected">شراء المنتجات المحددة</button>
+      <button class="secondary-btn" onclick="selectAllCartItems()" data-i18n="select-all">تحديد الكل</button>
+    </div>
+  </div>
+
+  <div id="wish-pane" class="bottom-pane p-6">
+    <div class="flex justify-between items-center mb-5 border-b pb-4">
+      <h3 class="font-black text-lg text-[#14454d]" data-i18n="wish-header">قائمة الأمنيات</h3>
+      <button onclick="closeAll()" class="text-3xl text-gray-300">&times;</button>
+    </div>
+    <div id="wish-content" class="h-[72%] overflow-y-auto hidden-scrollbar"></div>
+  </div>
+
+  <div id="menuPopup" class="popup-sheet">
+    <div class="p-5 border-b flex items-center justify-between">
+      <h3 id="menuPopupTitle" class="font-black text-lg text-[#14454d]">نافذة</h3>
+      <button onclick="closeMenuPopup()" class="text-3xl text-gray-300 leading-none">&times;</button>
+    </div>
+    <div id="menuPopupBody" class="p-5"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+  <script>
+    firebase.initializeApp(firebaseConfig1885);
+    const rtdb1885 = firebase.database();
+    const auth1885 = firebase.auth();
+
+    const fallbackLogo = "https://up6.cc/2026/03/17733402856661.png";
+
+    const PATHS = {
+      store: FIREBASE_PATHS_1885.settingsStore,
+      banners: FIREBASE_PATHS_1885.settingsBanners,
+      categories: FIREBASE_PATHS_1885.categories,
+      products: FIREBASE_PATHS_1885.products,
+      pageSections: "settings1885/pageSections1885",
+      menuItems: "settings1885/sidebarMenu1885"
+    };
+
+    const LOCAL_KEYS = {
+      cart: "tofan_cart_1885",
+      wishlist: "tofan_wishlist_1885",
+      checkoutSelection: "tofan_checkout_selection_1885"
+    };
+
+    let lang = "ar";
+    let cart = JSON.parse(localStorage.getItem(LOCAL_KEYS.cart) || "[]");
+    let wishlist = JSON.parse(localStorage.getItem(LOCAL_KEYS.wishlist) || "[]");
+    let categories = [];
+    let products = [];
+    let pageSections = [];
+    let menuItems = [];
+    let storeSettings = {
+      storeName: "متجر طوفان",
+      storeNameEn: "Tofan Store",
+      storeLogoUrl: fallbackLogo,
+      bannerTopUrl: ""
+    };
+    let currentUser = null;
+    let catSwiper = null;
+    let dynamicSwipers = [];
+    let productObserver = null;
+
+    const i18n = {
+      ar: {
+        "cat-title":"أقسام المتجر",
+        "home":"الرئيسية",
+        "cart":"السلة",
+        "wish":"الأمنيات",
+        "account-orders":"الحساب",
+        "cart-header":"سلة المشتريات",
+        "wish-header":"قائمة الأمنيات",
+        "selected-total":"الإجمالي المحدد",
+        "buy-selected":"شراء المنتجات المحددة",
+        "select-all":"تحديد الكل",
+        "buy":"إضافة للسلة",
+        "show-all":"عرض الكل",
+        "empty-cart":"السلة فارغة حالياً",
+        "empty-wish":"القائمة فارغة حالياً",
+        "empty-products":"لا توجد منتجات مضافة حالياً",
+        "empty-category":"لا توجد منتجات في هذا القسم",
+        "search-placeholder":"ابحث داخل الموقع...",
+        "search-empty":"لا توجد نتائج",
+        "search-title":"نتائج البحث",
+        "account-login-text":"سجل دخولك للوصول إلى الحساب والطلبات",
+        "login":"تسجيل الدخول",
+        "welcome":"مرحباً",
+        "open-account":"فتح الحساب والطلبات",
+        "account-orders-title":"الحساب والطلبات",
+        "added-cart":"تمت إضافة المنتج إلى السلة",
+        "added-wish":"تمت إضافة المنتج إلى الأمنيات",
+        "removed-wish":"تمت إزالة المنتج من الأمنيات",
+        "removed-cart":"تم حذف المنتج من السلة",
+        "choose-item":"حدد منتج واحد على الأقل"
+      },
+      en: {
+        "cat-title":"Shop Categories",
+        "home":"Home",
+        "cart":"Cart",
+        "wish":"Wishlist",
+        "account-orders":"Account",
+        "cart-header":"Shopping Cart",
+        "wish-header":"Wishlist",
+        "selected-total":"Selected Total",
+        "buy-selected":"Buy Selected Products",
+        "select-all":"Select All",
+        "buy":"Add to Cart",
+        "show-all":"View All",
+        "empty-cart":"Your cart is empty",
+        "empty-wish":"Wishlist is empty",
+        "empty-products":"No products available right now",
+        "empty-category":"No products in this category",
+        "search-placeholder":"Search the site...",
+        "search-empty":"No results found",
+        "search-title":"Search Results",
+        "account-login-text":"Sign in to access your account and orders",
+        "login":"Login",
+        "welcome":"Welcome",
+        "open-account":"Open account & orders",
+        "account-orders-title":"Account & Orders",
+        "added-cart":"Product added to cart",
+        "added-wish":"Product added to wishlist",
+        "removed-wish":"Product removed from wishlist",
+        "removed-cart":"Product removed from cart",
+        "choose-item":"Select at least one product"
+      }
+    };
+
+    function t(key){ return i18n[lang]?.[key] || key; }
+
+    function setLoadingBar(on){
+      const el = document.getElementById("topLoading");
+      if(on){
+        el.style.width = "65%";
+      }else{
+        el.style.width = "100%";
+        setTimeout(() => el.style.width = "0%", 260);
+      }
+    }
+
+    function showToast(msg){
+      const old = document.querySelector(".toast");
+      if(old) old.remove();
+      const tEl = document.createElement("div");
+      tEl.className = "toast";
+      tEl.textContent = msg;
+      document.body.appendChild(tEl);
+      setTimeout(() => {
+        tEl.style.opacity = "0";
+        tEl.style.transform = "translate(-50%,16px)";
+        setTimeout(() => tEl.remove(), 220);
+      }, 2200);
+    }
+
+    function money(v){ return `${Number(v || 0).toFixed(2)} ₪`; }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function normalizeCategories(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        nameAr: v.nameAr || v.name || "",
+        nameEn: v.nameEn || "",
+        image: v.image || "",
+        icon: v.icon || "box",
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false
+      })).sort((a,b) => a.order - b.order);
+    }
+
+    function normalizeProducts(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        categoryId: v.categoryId || v.category || "",
+        nameAr: v.nameAr || v.name || "",
+        nameEn: v.nameEn || "",
+        descAr: v.descAr || v.desc || "",
+        descEn: v.descEn || "",
+        price: Number(v.price || 0),
+        oldPrice: Number(v.oldPrice || 0),
+        image1: v.image1 || v.image || v.front || "",
+        image2: v.image2 || v.image || v.back || "",
+        images: Array.isArray(v.images) ? v.images : [],
+        colorOptions: Array.isArray(v.colorOptions) ? v.colorOptions : [],
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false,
+        createdAt: Number(v.createdAt || 0)
+      })).filter(p => p.enabled).sort((a,b) => (a.order - b.order) || (b.createdAt - a.createdAt));
+    }
+
+    function normalizeSections(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        type: v.type || "banner",
+        titleAr: v.titleAr || v.title || "",
+        titleEn: v.titleEn || "",
+        image: v.image || "",
+        images: Array.isArray(v.images) ? v.images : [],
+        link: v.link || "#",
+        placement: v.placement || "after_categories",
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false
+      })).filter(s => s.enabled).sort((a,b) => a.order - b.order);
+    }
+
+    function normalizeMenuItems(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        titleAr: v.titleAr || v.title || "",
+        titleEn: v.titleEn || "",
+        type: v.type || "link",
+        value: v.value || "",
+        popupHtml: v.popupHtml || "",
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false
+      })).filter(i => i.enabled).sort((a,b) => a.order - b.order);
+    }
+
+    function closeSearchBar(){
+      document.getElementById("searchShell").classList.remove("open");
+      document.getElementById("headerRow").classList.remove("search-active");
+      document.getElementById("searchInput").value = "";
+      document.getElementById("searchResultsBox").style.display = "none";
+      document.getElementById("searchResultsBox").innerHTML = "";
+    }
+
+    function toggleSearchBar(event){
+      if(event) event.stopPropagation();
+      const shell = document.getElementById("searchShell");
+      const row = document.getElementById("headerRow");
+      const open = shell.classList.contains("open");
+
+      if(open){
+        closeSearchBar();
+      }else{
+        shell.classList.add("open");
+        row.classList.add("search-active");
+        setTimeout(() => document.getElementById("searchInput").focus(), 140);
+      }
+    }
+
+    document.addEventListener("click", function(e){
+      const header = document.getElementById("siteHeader");
+      const results = document.getElementById("searchResultsBox");
+      if(!header.contains(e.target) && !results.contains(e.target)){
+        closeSearchBar();
+      }
+    });
+
+    function openSidebar(){
+      closeAll();
+      document.getElementById("sidebar-menu").classList.add("open");
+      document.getElementById("overlay").style.display = "block";
+    }
+
+    function openTopPane(id){
+      closeAll();
+      document.getElementById(`${id}-pane`).classList.add("active");
+      document.getElementById("overlay").style.display = "block";
+      if(id === "cart") renderCart();
+    }
+
+    function openBottomPane(id){
+      closeAll();
+      document.getElementById(`${id}-pane`).classList.add("active");
+      document.getElementById("overlay").style.display = "block";
+      if(id === "wish") renderWishlist();
+    }
+
+    function closeMenuPopup(){
+      document.getElementById("menuPopup").classList.remove("active");
+    }
+
+    function openMenuPopup(title, html){
+      document.getElementById("menuPopupTitle").textContent = title || "نافذة";
+      document.getElementById("menuPopupBody").innerHTML = html || "";
+      document.getElementById("menuPopup").classList.add("active");
+    }
+
+    function closeAll(){
+      document.getElementById("sidebar-menu").classList.remove("open");
+      document.querySelectorAll(".top-pane, .bottom-pane").forEach(p => p.classList.remove("active"));
+      const extra = document.getElementById("category-all-pane");
+      if(extra) extra.classList.remove("active");
+      closeMenuPopup();
+      document.getElementById("overlay").style.display = "none";
+    }
+
+    function setLogoImage(url){
+      const img = document.getElementById("headerLogo");
+      const loader = document.getElementById("headerLogoLoader");
+      img.classList.remove("logo-loaded");
+      loader.style.display = "block";
+
+      img.onload = () => {
+        loader.style.display = "none";
+        img.classList.add("logo-loaded");
+      };
+      img.onerror = () => {
+        if (img.src !== fallbackLogo) {
+          img.src = fallbackLogo;
+        } else {
+          loader.style.display = "none";
+          img.classList.add("logo-loaded");
+        }
+      };
+      img.src = url || fallbackLogo;
+    }
+
+    function updateStoreUI(){
+      const logo = storeSettings.storeLogoUrl || fallbackLogo;
+      const banner = storeSettings.bannerTopBannerUrl || storeSettings.bannerTopUrl || "";
+      const name = lang === "ar"
+        ? (storeSettings.storeName || "متجر طوفان")
+        : (storeSettings.storeNameEn || storeSettings.storeName || "Tofan Store");
+
+      setLogoImage(logo);
+      document.getElementById("sidebarLogo").src = logo;
+      document.getElementById("sidebarStoreName").textContent = name;
+
+      const heroSection = document.getElementById("heroSection");
+      const topBanner = document.getElementById("topBanner");
+      const topBannerLoader = document.getElementById("topBannerLoader");
+
+      if(banner){
+        heroSection.classList.remove("hero-hidden");
+        topBannerLoader.style.display = "block";
+        topBanner.onload = hideBannerLoader;
+        topBanner.onerror = hideBannerLoader;
+        topBanner.src = banner;
+      }else{
+        heroSection.classList.add("hero-hidden");
+        topBanner.removeAttribute("src");
+      }
+    }
+
+    function getCategoryName(cat){
+      return lang === "ar" ? (cat.nameAr || "") : (cat.nameEn || cat.nameAr || "");
+    }
+
+    function getProductName(p){
+      return lang === "ar" ? (p.nameAr || "") : (p.nameEn || p.nameAr || "");
+    }
+
+    function getSectionTitle(sec){
+      return lang === "ar" ? (sec.titleAr || "") : (sec.titleEn || sec.titleAr || "");
+    }
+
+    function getMenuTitle(item){
+      return lang === "ar" ? (item.titleAr || "") : (item.titleEn || item.titleAr || "");
+    }
+
+    function getDiscountPercent(price, oldPrice){
+      const p = Number(price || 0);
+      const o = Number(oldPrice || 0);
+      if(!(o > p && p > 0)) return 0;
+      return Math.round(((o - p) / o) * 100);
+    }
+
+    function getCategoryIconSvg(icon){
+      const icons = {
+        home: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>`,
+        box: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>`,
+        sun: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`,
+        shirt: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M4 7l4-3 4 2 4-2 4 3-2 4v9a1 1 0 01-1 1H7a1 1 0 01-1-1v-9L4 7z"></path></svg>`,
+        fire: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M12 3s4 3 4 7a4 4 0 11-8 0c0-2 1-4 4-7zm0 10a3 3 0 013 3 3 3 0 11-6 0c0-1.1.6-2.2 3-3z"></path></svg>`,
+        shoe: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M3 16c2 0 3-1 5-1 2 0 3 2 6 2 3 0 4-1 7-1v3H3v-3zM9 10l2 3"/></svg>`,
+        bag: `<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.5" d="M8 8V7a4 4 0 118 0v1m-9 0h10a1 1 0 011 1l-1 10a1 1 0 01-1 1H8a1 1 0 01-1-1L6 9a1 1 0 011-1z"/></svg>`
+      };
+      return icons[icon] || icons.box;
+    }
+
+    function renderUserBox(){
+      const box = document.getElementById("sidebarUserBox");
+
+      if(currentUser){
+        const name = currentUser.displayName || currentUser.email || "User";
+        box.innerHTML = `
+          <div class="bg-[#14454d]/5 border border-[#14454d]/10 rounded-3xl p-4">
+            <div class="text-xs text-gray-400 font-bold mb-1">${t("welcome")}</div>
+            <div class="font-black text-[#14454d] text-base mb-3">${escapeHtml(name)}</div>
+            <button onclick="window.location.href='order.html'" class="w-full bg-[#14454d] text-white py-3 rounded-2xl font-black">${t("open-account")}</button>
+          </div>
+        `;
+        document.getElementById("sidebarProfileText").textContent = t("account-orders-title");
+      }else{
+        box.innerHTML = `
+          <div class="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+            <div class="text-sm text-gray-500 font-bold mb-3">${t("account-login-text")}</div>
+            <button onclick="sessionStorage.setItem('login_redirect_1885','order.html'); window.location.href='login.html'" class="w-full bg-[#14454d] text-white py-3 rounded-2xl font-black">${t("login")}</button>
+          </div>
+        `;
+        document.getElementById("sidebarProfileText").textContent = t("account-orders-title");
+      }
+    }
+
+    function handleMenuItemClick(id){
+      const item = menuItems.find(x => x.id === id);
+      if(!item) return;
+
+      closeAll();
+
+      if(item.type === "link"){
+        if(/^https?:\/\//i.test(item.value)){
+          window.open(item.value, "_blank");
+        }else{
+          window.location.href = item.value || "#";
+        }
+        return;
+      }
+
+      if(item.type === "internal_page"){
+        window.location.href = item.value || "index.html";
+        return;
+      }
+
+      if(item.type === "category"){
+        setTimeout(() => scrollToCategorySection(item.value), 120);
+        return;
+      }
+
+      if(item.type === "popup_html"){
+        document.getElementById("overlay").style.display = "block";
+        openMenuPopup(getMenuTitle(item), item.popupHtml || "");
+      }
+    }
+
+    function renderSidebarDynamicMenu(){
+      const wrap = document.getElementById("sidebarDynamicMenuWrap");
+      if(!menuItems.length){
+        wrap.innerHTML = "";
+        return;
+      }
+
+      wrap.innerHTML = `
+        <div class="space-y-3">
+          ${menuItems.map(item => `
+            <button class="auth-chip" onclick="handleMenuItemClick('${item.id}')">
+              <span class="truncate">${escapeHtml(getMenuTitle(item))}</span>
+              <span class="text-gray-400 text-xs font-bold">فتح</span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function applyLanguageTexts(){
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      document.getElementById("lang-btn").innerText = lang === "ar" ? "E" : "ع";
+      document.getElementById("searchInput").placeholder = t("search-placeholder");
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        el.textContent = t(key);
+      });
+      updateStoreUI();
+      renderUserBox();
+      renderSidebarDynamicMenu();
+      renderCategoriesSlider();
+      renderProductsSections();
+      renderCart();
+      renderWishlist();
+      renderDynamicSections();
+    }
+
+    function performSearch(query){
+      const box = document.getElementById("searchResultsBox");
+      const q = String(query || "").trim().toLowerCase();
+
+      if(!q){
+        box.style.display = "none";
+        box.innerHTML = "";
+        return;
+      }
+
+      const filtered = products.filter(p => {
+        const cat = categories.find(c => c.id === p.categoryId);
+        const text = [
+          p.nameAr, p.nameEn, cat?.nameAr || "", cat?.nameEn || ""
+        ].join(" ").toLowerCase();
+        return text.includes(q);
+      }).slice(0, 8);
+
+      if(!filtered.length){
+        box.style.display = "block";
+        box.innerHTML = `<div class="text-sm font-bold text-gray-400 p-2">${t("search-empty")}</div>`;
+        return;
+      }
+
+      box.style.display = "block";
+      box.innerHTML = `
+        <div class="text-xs font-black text-[#14454d] px-2 py-1">${t("search-title")}</div>
+        <div class="space-y-2">
+          ${filtered.map(p => `
+            <button onclick="scrollToProductCard('${p.id}')" class="w-full text-right flex items-center gap-3 p-2 rounded-2xl hover:bg-gray-50">
+              <img src="${escapeHtml((p.image1 || 'https://via.placeholder.com/100x120?text=Image'))}" class="w-12 h-14 object-cover rounded-xl border" loading="lazy">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-black text-gray-800 truncate">${escapeHtml(getProductName(p))}</div>
+                <div class="text-[11px] text-[#14454d] font-black mt-1">${money(p.price)}</div>
+              </div>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function scrollToProductCard(productId){
+      const el = document.getElementById(`product-card-${productId}`);
+      if(el){
+        closeSearchBar();
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+      }
+    }
+
+    function renderCategoriesSlider(){
+      const wrapper = document.getElementById("categories-swiper-wrapper");
+      const enabledCats = categories.filter(c => c.enabled !== false);
+
+      if(!enabledCats.length){
+        wrapper.innerHTML = `<div class="swiper-slide"><div class="empty-box">${t("empty-products")}</div></div>`;
+        refreshSwiper();
+        renderSidebarCategories();
+        return;
+      }
+
+      const groups = [];
+      for(let i = 0; i < enabledCats.length; i += 3){
+        groups.push(enabledCats.slice(i, i + 3));
+      }
+
+      wrapper.innerHTML = groups.map(group => `
+        <div class="swiper-slide">
+          <div class="grid grid-cols-3 gap-3">
+            ${group.map(cat => `
+              <button class="cat-card flex flex-col items-center gap-2" onclick="scrollToCategorySection('${escapeHtml(cat.id)}')">
+                <div class="cat-icon-wrapper">
+                  ${cat.image
+                    ? `<img src="${escapeHtml(cat.image)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+                    : getCategoryIconSvg(cat.icon || "box")
+                  }
+                </div>
+                <span class="text-xs font-bold text-gray-600 line-clamp-1">${escapeHtml(getCategoryName(cat))}</span>
+              </button>
+            `).join("")}
+            ${group.length < 3 ? new Array(3 - group.length).fill(0).map(() => `<div></div>`).join("") : ""}
+          </div>
+        </div>
+      `).join("");
+
+      refreshSwiper();
+      renderSidebarCategories();
+    }
+
+    function refreshSwiper(){
+      if(catSwiper) catSwiper.destroy(true, true);
+      catSwiper = new Swiper(".catSwiper", {
+        loop: true,
+        pagination: { el: ".swiper-pagination", clickable: true },
+        autoplay: { delay: 1000, disableOnInteraction: false },
+        speed: 600
+      });
+    }
+
+    function renderSidebarCategories(){
+      const box = document.getElementById("sidebarCategories");
+      const enabledCats = categories.filter(c => c.enabled !== false);
+
+      if(!enabledCats.length){
+        box.innerHTML = `<div class="text-gray-400 text-sm">${t("empty-products")}</div>`;
+        return;
+      }
+
+      box.innerHTML = enabledCats.map(cat => `
+        <button onclick="closeAll(); setTimeout(() => scrollToCategorySection('${escapeHtml(cat.id)}'), 120)" class="text-right hover:text-[#14454d] transition-colors">
+          ${escapeHtml(getCategoryName(cat))}
+        </button>
+      `).join("");
+    }
+
+    function getProductDisplayImages(p){
+      if (Array.isArray(p.colorOptions) && p.colorOptions.length && Array.isArray(p.colorOptions[0].images) && p.colorOptions[0].images[0]) {
+        const firstColorImg = p.colorOptions[0].images[0];
+        return {
+          image1: firstColorImg || p.image1,
+          image2: p.image2 || p.image1 || firstColorImg
+        };
+      }
+      return {
+        image1: p.image1,
+        image2: p.image2 || p.image1
+      };
+    }
+
+    function renderProductCard(p, i = 0){
+      const inWish = wishlist.includes(p.id);
+      const displayImages = getProductDisplayImages(p);
+      const discount = getDiscountPercent(p.price, p.oldPrice);
+
+      return `
+        <div id="product-card-${p.id}" class="product-card reveal-card" onclick="this.classList.toggle('touch-active')">
+          <div class="img-container">
+            <div class="product-image-loader"></div>
+
+            ${discount > 0 ? `<div class="discount-badge">${discount}% -</div>` : ""}
+
+            <img src="${escapeHtml(displayImages.image1 || 'https://via.placeholder.com/500x700?text=No+Image')}"
+                 class="front-img"
+                 loading="lazy"
+                 decoding="async"
+                 referrerpolicy="no-referrer"
+                 onload="hideImageLoader(this)"
+                 onerror="this.onerror=null;this.src='https://via.placeholder.com/500x700?text=No+Image';hideImageLoader(this)">
+
+            <img src="${escapeHtml(displayImages.image2 || displayImages.image1 || 'https://via.placeholder.com/500x700?text=No+Image')}"
+                 class="back-img"
+                 loading="lazy"
+                 decoding="async"
+                 referrerpolicy="no-referrer"
+                 onload="hideImageLoader(this)"
+                 onerror="this.onerror=null;this.src='${escapeHtml(displayImages.image1 || 'https://via.placeholder.com/500x700?text=No+Image')}';hideImageLoader(this)">
+
+            <div class="product-watermark">
+              <img src="${escapeHtml(storeSettings.storeLogoUrl || fallbackLogo)}" alt="watermark" loading="lazy" decoding="async">
+            </div>
+
+            <button class="wish-btn" onclick="event.stopPropagation(); toggleWish('${p.id}')">
+              <svg class="w-5 h-5 ${inWish ? 'text-red-500' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-3">
+            <h4 class="text-[14px] font-black text-gray-800 leading-6 line-clamp-2 min-h-[48px] mb-1">${escapeHtml(getProductName(p))}</h4>
+
+            <div class="price-row">
+              ${p.oldPrice > p.price ? `<span class="old-price">${money(p.oldPrice)}</span>` : ``}
+              <span class="new-price">${money(p.price)}</span>
+            </div>
+
+            <button onclick="event.stopPropagation(); addToCart('${p.id}')" class="hollow-cart-btn">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSectionBlock(section, index){
+      const title = getSectionTitle(section);
+      const images = section.images.length ? section.images : (section.image ? [section.image] : []);
+      if(!images.length) return "";
+
+      if(section.type === "slider"){
+        const swId = `extra-swiper-${index}`;
+        return `
+          <section class="mb-6">
+            ${title ? `<h3 class="font-black text-[#14454d] text-lg mb-3 px-4">${escapeHtml(title)}</h3>` : ``}
+            <div class="rounded-banner section-slider">
+              <div class="swiper ${swId}">
+                <div class="swiper-wrapper">
+                  ${images.map(img => `
+                    <div class="swiper-slide">
+                      <a href="${escapeHtml(section.link || '#')}">
+                        <div class="extra-banner-wrap">
+                          <img src="${escapeHtml(img)}" alt="section image" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                        </div>
+                      </a>
+                    </div>
+                  `).join("")}
+                </div>
+                ${images.length > 1 ? `
+                  <div class="swiper-button-prev"></div>
+                  <div class="swiper-button-next"></div>
+                  <div class="swiper-pagination"></div>
+                ` : ``}
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      return `
+        <section class="mb-6">
+          ${title ? `<h3 class="font-black text-[#14454d] text-lg mb-3 px-4">${escapeHtml(title)}</h3>` : ``}
+          <a href="${escapeHtml(section.link || '#')}" class="block rounded-banner">
+            <div class="extra-banner-wrap">
+              <img src="${escapeHtml(images[0])}" alt="banner" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+            </div>
+          </a>
+        </section>
+      `;
+    }
+
+    function renderDynamicSections(){
+      document.getElementById("topDynamicSections").innerHTML =
+        pageSections.filter(s => s.placement === "top").map((s, i) => renderSectionBlock(s, `top-${i}`)).join("");
+
+      document.getElementById("afterCategoriesSections").innerHTML =
+        pageSections.filter(s => s.placement === "after_categories").map((s, i) => renderSectionBlock(s, `mid-${i}`)).join("");
+
+      document.getElementById("bottomDynamicSections").innerHTML =
+        pageSections.filter(s => s.placement === "bottom").map((s, i) => renderSectionBlock(s, `bottom-${i}`)).join("");
+
+      initDynamicSwipers();
+    }
+
+    function initDynamicSwipers(){
+      dynamicSwipers.forEach(sw => { try{ sw.destroy(true, true); }catch(e){} });
+      dynamicSwipers = [];
+
+      document.querySelectorAll(".section-slider .swiper").forEach(swEl => {
+        dynamicSwipers.push(new Swiper(swEl, {
+          loop: true,
+          speed: 600,
+          autoplay: { delay: 2500, disableOnInteraction: false },
+          pagination: { el: swEl.querySelector(".swiper-pagination"), clickable: true },
+          navigation: { nextEl: swEl.querySelector(".swiper-button-next"), prevEl: swEl.querySelector(".swiper-button-prev") }
+        }));
+      });
+    }
+
+    function renderProductsSections(){
+      const holder = document.getElementById("products-sections");
+      const enabledCats = categories.filter(c => c.enabled !== false);
+
+      if(!enabledCats.length){
+        holder.innerHTML = `<div class="empty-box">${t("empty-products")}</div>`;
+        return;
+      }
+
+      const betweenSections = pageSections.filter(s => s.placement === "between_categories");
+      const parts = [];
+
+      enabledCats.forEach((cat, idx) => {
+        const catProducts = products.filter(p => p.categoryId === cat.id);
+        if(!catProducts.length) return;
+
+        const firstFour = catProducts.slice(0,4);
+        parts.push(`
+          <section class="mb-8" id="category-section-${escapeHtml(cat.id)}">
+            <div class="flex justify-between items-center mb-4">
+              <div class="flex items-center gap-3">
+                ${cat.image
+                  ? `<div class="w-10 h-10 rounded-2xl overflow-hidden border bg-white"><img src="${escapeHtml(cat.image)}" class="w-full h-full object-cover" loading="lazy" decoding="async"></div>`
+                  : `<div class="w-10 h-10 rounded-2xl border bg-white flex items-center justify-center text-[#14454d]">${getCategoryIconSvg(cat.icon || "box")}</div>`
+                }
+                <h3 class="font-black text-[#14454d] text-lg">${escapeHtml(getCategoryName(cat))}</h3>
+              </div>
+              ${catProducts.length > 4 ? `<button class="text-[#14454d] text-xs font-black bg-[#14454d]/10 px-3 py-1 rounded-full" onclick="showAllCategoryProducts('${escapeHtml(cat.id)}')">${t("show-all")}</button>` : ``}
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              ${firstFour.map((p, i) => renderProductCard(p, i)).join("")}
+            </div>
+          </section>
+        `);
+
+        if(betweenSections[idx]){
+          parts.push(renderSectionBlock(betweenSections[idx], `between-${idx}`));
+        }
+      });
+
+      holder.innerHTML = parts.join("") || `<div class="empty-box">${t("empty-products")}</div>`;
+      initDynamicSwipers();
+      setupRevealAnimation();
+    }
+
+    function showAllCategoryProducts(catId){
+      const cat = categories.find(c => c.id === catId);
+      const items = products.filter(p => p.categoryId === catId);
+
+      if(!items.length){
+        showToast(t("empty-category"));
+        return;
+      }
+
+      let pane = document.getElementById("category-all-pane");
+      if(!pane){
+        pane = document.createElement("div");
+        pane.id = "category-all-pane";
+        pane.className = "bottom-pane p-6";
+        document.body.appendChild(pane);
+      }
+
+      pane.innerHTML = `
+        <div class="flex justify-between items-center mb-5 border-b pb-4">
+          <h3 class="font-black text-lg text-[#14454d]">${escapeHtml(getCategoryName(cat || {}))}</h3>
+          <button onclick="closeAll()" class="text-3xl text-gray-300">&times;</button>
+        </div>
+        <div class="h-[72%] overflow-y-auto hidden-scrollbar">
+          <div class="grid grid-cols-2 gap-4">
+            ${items.map((p, i) => renderProductCard(p, i)).join("")}
+          </div>
+        </div>
+      `;
+
+      closeAll();
+      pane.classList.add("active");
+      document.getElementById("overlay").style.display = "block";
+      setupRevealAnimation();
+    }
+
+    function setupRevealAnimation(){
+      if (productObserver) productObserver.disconnect();
+
+      productObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+          }
+        });
+      }, { threshold: 0.12 });
+
+      document.querySelectorAll(".reveal-card").forEach(card => {
+        productObserver.observe(card);
+      });
+    }
+
+    function scrollToCategorySection(catId){
+      const sec = document.getElementById(`category-section-${catId}`);
+      if(sec) sec.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    function hideImageLoader(img){
+      const box = img.closest(".img-container");
+      if(!box) return;
+      const loader = box.querySelector(".product-image-loader");
+      if(loader) loader.style.display = "none";
+    }
+
+    function hideBannerLoader(){
+      const loader = document.getElementById("topBannerLoader");
+      if(loader) loader.style.display = "none";
+    }
+
+    function saveCart(){
+      localStorage.setItem(LOCAL_KEYS.cart, JSON.stringify(cart));
+    }
+
+    function saveWishlist(){
+      localStorage.setItem(LOCAL_KEYS.wishlist, JSON.stringify(wishlist));
+    }
+
+    function addToCart(productId){
+      const p = products.find(x => x.id === productId);
+      if(!p) return;
+
+      const existing = cart.find(i => i.id === p.id);
+      if(existing){
+        existing.qty += 1;
+      }else{
+        cart.push({
+          id: p.id,
+          nameAr: p.nameAr,
+          nameEn: p.nameEn,
+          price: p.price,
+          image1: p.image1,
+          image2: p.image2,
+          selected: true,
+          qty: 1
+        });
+      }
+
+      saveCart();
+      updateBadges();
+      renderCart();
+      openTopPane("cart");
+      showToast(t("added-cart"));
+    }
+
+    function toggleWish(productId){
+      const idx = wishlist.indexOf(productId);
+      if(idx > -1){
+        wishlist.splice(idx, 1);
+        showToast(t("removed-wish"));
+      }else{
+        wishlist.push(productId);
+        showToast(t("added-wish"));
+      }
+      saveWishlist();
+      updateBadges();
+      renderProductsSections();
+      renderWishlist();
+    }
+
+    function updateBadges(){
+      const cartCount = cart.reduce((a, b) => a + Number(b.qty || 1), 0);
+      const wishCount = wishlist.length;
+
+      document.getElementById("cart-badge-header").textContent = cartCount;
+      document.getElementById("cart-badge-bottom").textContent = cartCount;
+      document.getElementById("wish-badge").textContent = wishCount;
+      document.getElementById("sidebarCartCount").textContent = cartCount;
+      document.getElementById("sidebarWishCount").textContent = wishCount;
+    }
+
+    function renderCart(){
+      const container = document.getElementById("cart-content");
+
+      if(!cart.length){
+        container.innerHTML = `<div class="empty-box mt-4">${t("empty-cart")}</div>`;
+        updateCartTotal();
+        return;
+      }
+
+      container.innerHTML = cart.map(item => `
+        <div class="flex gap-3 border border-gray-100 rounded-2xl p-3">
+          <div class="pt-1">
+            <input class="cart-item-check" type="checkbox" ${item.selected ? 'checked' : ''} onchange="toggleCartSelect('${item.id}')">
+          </div>
+
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/120x160?text=Image')}" class="w-16 h-20 object-cover rounded-xl border" loading="lazy">
+
+          <div class="flex-1">
+            <h4 class="text-xs font-black text-gray-800 mb-1 line-clamp-2">${escapeHtml(lang === "ar" ? (item.nameAr || item.nameEn || "") : (item.nameEn || item.nameAr || ""))}</h4>
+            <p class="text-sm font-black text-[#14454d] mb-3">${money(item.price)}</p>
+
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <button class="w-8 h-8 rounded-full bg-gray-100 font-black" onclick="changeQty('${item.id}', -1)">-</button>
+                <span class="font-black text-sm min-w-[20px] text-center">${item.qty}</span>
+                <button class="w-8 h-8 rounded-full bg-gray-100 font-black" onclick="changeQty('${item.id}', 1)">+</button>
+              </div>
+
+              <button class="text-red-500 text-xs font-black" onclick="removeFromCart('${item.id}')">×</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      updateCartTotal();
+    }
+
+    function renderWishlist(){
+      const container = document.getElementById("wish-content");
+      const items = products.filter(p => wishlist.includes(p.id));
+
+      if(!items.length){
+        container.innerHTML = `<div class="empty-box mt-4">${t("empty-wish")}</div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="grid grid-cols-2 gap-4">${items.map((p, i) => renderProductCard(p, i)).join("")}</div>`;
+      setupRevealAnimation();
+    }
+
+    function toggleCartSelect(id){
+      const item = cart.find(i => i.id === id);
+      if(!item) return;
+      item.selected = !item.selected;
+      saveCart();
+      updateCartTotal();
+    }
+
+    function selectAllCartItems(){
+      const allSelected = cart.every(i => i.selected);
+      cart.forEach(i => i.selected = !allSelected);
+      saveCart();
+      renderCart();
+    }
+
+    function updateCartTotal(){
+      const total = cart.filter(i => i.selected).reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.qty || 1)), 0);
+      document.getElementById("cart-total").textContent = money(total);
+    }
+
+    function changeQty(id, delta){
+      const item = cart.find(i => i.id === id);
+      if(!item) return;
+      item.qty = Number(item.qty || 1) + delta;
+      if(item.qty <= 0) cart = cart.filter(i => i.id !== id);
+      saveCart();
+      updateBadges();
+      renderCart();
+    }
+
+    function removeFromCart(id){
+      cart = cart.filter(i => i.id !== id);
+      saveCart();
+      updateBadges();
+      renderCart();
+      showToast(t("removed-cart"));
+    }
+
+    function checkoutSelectedCart(){
+      const selectedItems = cart.filter(i => i.selected);
+      if(!selectedItems.length){
+        showToast(t("choose-item"));
+        return;
+      }
+
+      sessionStorage.setItem(LOCAL_KEYS.checkoutSelection, JSON.stringify({
+        source: "cart",
+        items: selectedItems
+      }));
+
+      window.location.href = "pay.html";
+    }
+
+    function goOrderPage(){
+      if(currentUser){
+        window.location.href = "order.html";
+      }else{
+        sessionStorage.setItem("login_redirect_1885", "order.html");
+        window.location.href = "login.html";
+      }
+    }
+
+    function toggleLang(){
+      lang = lang === "ar" ? "en" : "ar";
+      applyLanguageTexts();
+    }
+
+    async function loadStoreData(){
+      const [storeSnap, bannersSnap, categoriesSnap, productsSnap, sectionsSnap, menuSnap] = await Promise.all([
+        rtdb1885.ref(PATHS.store).get(),
+        rtdb1885.ref(PATHS.banners).get(),
+        rtdb1885.ref(PATHS.categories).get(),
+        rtdb1885.ref(PATHS.products).get(),
+        rtdb1885.ref(PATHS.pageSections).get(),
+        rtdb1885.ref(PATHS.menuItems).get()
+      ]);
+
+      const store = storeSnap.val() || {};
+      const banners = bannersSnap.val() || {};
+
+      storeSettings = {
+        storeName: store.storeName || store.storeNameAr || "متجر طوفان",
+        storeNameEn: store.storeNameEn || store.storeName || "Tofan Store",
+        storeLogoUrl: store.storeLogoUrl || fallbackLogo,
+        bannerTopUrl: banners.topBannerUrl || store.topBannerUrl || ""
+      };
+
+      categories = normalizeCategories(categoriesSnap.val() || {});
+      products = normalizeProducts(productsSnap.val() || {});
+      pageSections = normalizeSections(sectionsSnap.val() || {});
+      menuItems = normalizeMenuItems(menuSnap.val() || {});
+    }
+
+    function attachAuthListener(){
+      auth1885.onAuthStateChanged(user => {
+        currentUser = user || null;
+        renderUserBox();
+      });
+    }
+
+    async function initPage(){
+      try{
+        setLoadingBar(true);
+        attachAuthListener();
+        await loadStoreData();
+        updateStoreUI();
+        renderSidebarDynamicMenu();
+        renderCategoriesSlider();
+        renderProductsSections();
+        renderDynamicSections();
+        updateBadges();
+        renderUserBox();
+        renderCart();
+        renderWishlist();
+        applyLanguageTexts();
+      }catch(err){
+        console.error(err);
+        document.getElementById("products-sections").innerHTML = `<div class="empty-box">${t("empty-products")}</div>`;
+      }finally{
+        setLoadingBar(false);
+      }
+    }
+
+    window.addEventListener("load", initPage);
+  </script>
+</body>
+</html>
