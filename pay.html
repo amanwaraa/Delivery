@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tofan Store | الدفع</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    :root{
+      --primary:#14454d;
+      --accent:#f37021;
+      --bg:#f5f7fa;
+      --line:#e8edf2;
+      --text:#0f172a;
+      --muted:#64748b;
+      --success:#16a34a;
+      --danger:#dc2626;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .top-loading{
+      position:fixed;top:0;right:0;height:3px;width:0;z-index:9999;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+      transition:width .3s ease;
+    }
+
+    .overlay-loading{
+      position:fixed;inset:0;background:rgba(255,255,255,.84);
+      backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;
+      z-index:9998;
+    }
+
+    .loader-box{
+      background:#fff;border:1px solid var(--line);border-radius:26px;
+      padding:24px 28px;display:flex;flex-direction:column;align-items:center;gap:12px;
+      box-shadow:0 20px 60px rgba(0,0,0,.1);
+    }
+
+    .spinner{
+      width:44px;height:44px;border-radius:999px;
+      border:4px solid #e5e7eb;border-top-color:var(--primary);
+      animation:spin .8s linear infinite;
+    }
+
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .page-wrap{max-width:980px;margin:auto;padding:14px 14px 130px}
+
+    .card{
+      background:#fff;border:1px solid var(--line);border-radius:28px;
+      box-shadow:0 10px 30px rgba(0,0,0,.04);
+    }
+
+    .header-bar{
+      position:sticky;top:0;z-index:30;background:rgba(245,247,250,.96);
+      backdrop-filter:blur(10px);padding:10px 0 12px;margin-bottom:8px;
+    }
+
+    .icon-circle{
+      width:44px;height:44px;border-radius:999px;background:#fff;border:1px solid var(--line);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+      box-shadow:0 8px 20px rgba(0,0,0,.04);
+    }
+
+    .section-title{
+      font-size:22px;font-weight:900;color:var(--primary);
+    }
+
+    .subtle{
+      color:#94a3b8;font-weight:800;font-size:12px;
+    }
+
+    .field-label{
+      display:block;margin-bottom:8px;margin-right:4px;
+      font-size:12px;font-weight:900;color:#64748b;
+    }
+
+    html[dir="ltr"] .field-label{
+      margin-right:0;
+      margin-left:4px;
+    }
+
+    .field, .select, .textarea{
+      width:100%;border:1px solid #e5e7eb;background:#f8fafc;color:#111827;
+      border-radius:18px;padding:13px 14px;outline:none;font-weight:800;
+      transition:.2s ease;
+    }
+    .field:focus, .select:focus, .textarea:focus{
+      border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(20,69,77,.08);
+    }
+
+    .primary-btn, .secondary-btn, .ghost-btn{
+      border:none;border-radius:18px;padding:14px 16px;font-weight:900;cursor:pointer;
+      transition:.2s ease;
+    }
+    .primary-btn{background:var(--primary);color:#fff;box-shadow:0 14px 28px rgba(20,69,77,.18)}
+    .secondary-btn{background:#f3f4f6;color:#334155}
+    .ghost-btn{background:#fff;border:1px solid #dfe7ee;color:var(--primary)}
+    .primary-btn:active,.secondary-btn:active,.ghost-btn:active{transform:scale(.98)}
+
+    .stepper{
+      display:flex;align-items:center;gap:8px;overflow:auto;padding-bottom:4px;
+    }
+    .step-node{
+      width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:900;flex:0 0 36px;
+    }
+    .step-node.done{background:var(--success);color:#fff}
+    .step-node.current{background:#111827;color:#fff;border:4px solid #e5e7eb}
+    .step-node.idle{background:#e5e7eb;color:#6b7280}
+    .step-line{
+      height:4px;min-width:26px;border-radius:999px;background:#d1d5db;flex:1;
+    }
+    .step-line.done{background:var(--success)}
+    .step-label{font-size:12px;font-weight:900;white-space:nowrap}
+    .step-label.done{color:var(--success)}
+    .step-label.current{color:#111827}
+    .step-label.idle{color:#6b7280}
+
+    .product-view{
+      display:grid;grid-template-columns:1.02fr .98fr;gap:16px;
+    }
+    @media (max-width:740px){
+      .product-view{grid-template-columns:1fr}
+    }
+
+    .slider-shell{
+      position:relative;background:#fff;border:1px solid var(--line);border-radius:28px;overflow:hidden;
+      min-height:320px;
+    }
+
+    .slider-track{
+      display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;height:100%;
+    }
+    .slider-track::-webkit-scrollbar{display:none}
+
+    .slide-item{
+      min-width:100%;scroll-snap-align:start;position:relative;background:#f4f6f8;aspect-ratio:1/1;
+      overflow:hidden;
+    }
+
+    .slide-item img{
+      width:100%;height:100%;object-fit:cover;display:block;
+      opacity:0;transition:opacity .35s ease, transform .35s ease;
+    }
+    .slide-item img.loaded{opacity:1}
+
+    .slide-loader{
+      position:absolute;inset:0;
+      background:linear-gradient(90deg,#f1f5f9 25%,#e5e7eb 37%,#f1f5f9 63%);
+      background-size:400% 100%;
+      animation:shimmer 1.2s infinite linear;
+      z-index:1;
+    }
+
+    @keyframes shimmer{
+      0%{background-position:100% 0}
+      100%{background-position:-100% 0}
+    }
+
+    .slider-btn{
+      position:absolute;top:50%;transform:translateY(-50%);
+      width:38px;height:38px;border:none;border-radius:999px;background:rgba(17,24,39,.82);
+      color:#fff;display:flex;align-items:center;justify-content:center;z-index:5;cursor:pointer;
+    }
+    .slider-btn.prev{right:12px}
+    .slider-btn.next{left:12px}
+    html[dir="ltr"] .slider-btn.prev{right:auto;left:12px}
+    html[dir="ltr"] .slider-btn.next{left:auto;right:12px}
+
+    .slider-dots{display:flex;justify-content:center;gap:6px;padding:12px}
+    .slider-dot{
+      width:8px;height:8px;border-radius:999px;background:#cbd5e1;border:none;transition:.2s;cursor:pointer;
+    }
+    .slider-dot.active{width:22px;background:var(--primary)}
+
+    .discount-chip{
+      position:absolute;top:14px;right:14px;background:var(--accent);color:#fff;
+      min-width:58px;height:30px;padding:0 12px;border-radius:999px;font-size:11px;
+      display:flex;align-items:center;justify-content:center;font-weight:900;z-index:4;
+      box-shadow:0 8px 18px rgba(243,112,33,.26);
+    }
+    html[dir="ltr"] .discount-chip{right:auto;left:14px}
+
+    .logo-watermark{
+      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      pointer-events:none;z-index:2;
+    }
+    .logo-watermark img{
+      width:92px;height:92px;object-fit:contain;opacity:.12;filter:drop-shadow(0 10px 24px rgba(0,0,0,.16));
+    }
+
+    .color-row, .size-row{
+      display:flex;flex-wrap:wrap;gap:10px;
+    }
+
+    .color-btn, .size-btn{
+      display:flex;flex-direction:column;align-items:center;gap:4px;border:none;background:transparent;cursor:pointer;
+    }
+
+    .color-chip{
+      width:34px;height:34px;border-radius:999px;border:2px solid #d1d5db;
+      transition:.22s ease;box-shadow:0 3px 10px rgba(0,0,0,.05);
+    }
+    .color-chip.active{
+      transform:scale(1.08);
+      border-color:#111827;
+      box-shadow:0 0 0 4px rgba(17,24,39,.08);
+    }
+
+    .color-name{
+      font-size:11px;font-weight:800;color:#64748b;max-width:66px;text-align:center;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+
+    .size-pill{
+      min-width:54px;
+      height:40px;
+      padding:0 16px;
+      border-radius:999px;
+      border:2px solid #d1d5db;
+      background:#fff;
+      color:#334155;
+      font-weight:900;
+      font-size:13px;
+      transition:.22s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .size-pill.active{
+      background:var(--primary);
+      color:#fff;
+      border-color:var(--primary);
+      box-shadow:0 10px 22px rgba(20,69,77,.16);
+    }
+
+    .field-preview{
+      background:#f8fafc;border:1px solid #eef2f6;border-radius:18px;padding:11px 12px;
+    }
+    .field-preview .k{font-size:11px;color:#94a3b8;font-weight:900;margin-bottom:3px}
+    .field-preview .v{font-size:13px;color:#111827;font-weight:900;word-break:break-word}
+
+    .pay-method-grid{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+    }
+    @media (max-width:520px){
+      .pay-method-grid{grid-template-columns:1fr}
+    }
+
+    .pay-method{
+      border:2px solid #edf0f3;background:#fff;border-radius:22px;padding:14px;
+      cursor:pointer;transition:.2s ease;
+      text-align:inherit;
+    }
+    .pay-method.selected{
+      border-color:var(--primary);background:#f0f8f9;
+      box-shadow:0 10px 22px rgba(20,69,77,.08);
+    }
+    .pay-method img{
+      width:46px;height:46px;object-fit:cover;border-radius:999px;border:1px solid #e5e7eb;background:#fff;
+    }
+
+    .copy-box{
+      background:#fff;border:1.5px solid #111827;border-radius:18px;padding:14px;position:relative;
+    }
+    .copy-box-title{
+      position:absolute;top:-10px;right:14px;background:#fff;padding:0 8px;font-size:11px;font-weight:900;color:#111827;
+    }
+    html[dir="ltr"] .copy-box-title{right:auto;left:14px}
+    .copy-box-value{
+      padding-top:4px;font-size:14px;font-weight:900;word-break:break-all;
+    }
+
+    .summary-row{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;
+    }
+    .summary-row .k{color:#64748b;font-weight:800}
+    .summary-row .v{color:#111827;font-weight:900;text-align:end}
+
+    .summary-total{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+      padding-top:16px;border-top:1px solid #eef2f6;margin-top:16px;
+    }
+    .summary-total .k{font-size:20px;font-weight:900}
+    .summary-total .v{font-size:28px;font-weight:900;color:var(--primary)}
+
+    .status-box{
+      background:#f8fafc;border:1px solid #e8edf2;border-radius:22px;padding:14px;
+    }
+
+    .bottom-bar{
+      position:fixed;bottom:0;left:0;right:0;z-index:60;background:#fff;
+      border-top:1px solid #e5e7eb;box-shadow:0 -10px 30px rgba(0,0,0,.06);
+      padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    }
+
+    .toast{
+      position:fixed;bottom:92px;left:50%;transform:translateX(-50%);
+      background:#111827;color:#fff;border-radius:999px;padding:12px 18px;z-index:9999;
+      font-size:13px;font-weight:900;box-shadow:0 12px 32px rgba(0,0,0,.16);
+      max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+
+    .hidden-view{display:none !important}
+    .soft-divider{height:1px;background:#eef2f6;margin:18px 0}
+    .danger-ring{box-shadow:0 0 0 3px rgba(220,38,38,.12)!important;border-color:#ef4444!important}
+
+    .select-wrap{position:relative}
+    .select-arrow{
+      position:absolute;
+      left:14px;
+      top:50%;
+      transform:translateY(-50%);
+      pointer-events:none;
+      color:#64748b;
+      z-index:2;
+    }
+    html[dir="ltr"] .select-arrow{
+      left:auto;
+      right:14px;
+    }
+
+    .select{
+      appearance:none;
+      padding-left:40px;
+    }
+    html[dir="ltr"] .select{
+      padding-left:14px;
+      padding-right:40px;
+    }
+
+    .pay-amount-box{
+      background:#f8fafc;
+      border:1px solid #e8edf2;
+      border-radius:18px;
+      padding:14px;
+      margin-top:14px;
+    }
+
+    .pay-amount-box .label{
+      color:#64748b;
+      font-size:12px;
+      font-weight:900;
+      margin-bottom:5px;
+    }
+
+    .pay-amount-box .amount{
+      color:var(--primary);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
+    .fade-switch{animation:fadeSwitch .28s ease}
+    @keyframes fadeSwitch{
+      from{opacity:.35;transform:scale(.985)}
+      to{opacity:1;transform:scale(1)}
+    }
+
+    .unit-card{
+      border:1px solid #e8edf2;
+      border-radius:22px;
+      padding:14px;
+      background:#fff;
+    }
+
+    .unit-card-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .unit-tag{
+      background:#f1f5f9;
+      color:#475569;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .unit-preview{
+      background:#f8fafc;
+      border:1px solid #eef2f6;
+      border-radius:16px;
+      padding:10px 12px;
+      margin-top:12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      font-size:12px;
+      font-weight:900;
+      color:#475569;
+    }
+
+    @media (max-width:640px){
+      .page-wrap{padding-left:12px;padding-right:12px}
+      .section-title{font-size:20px}
+      .summary-total .v{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="topLoading" class="top-loading"></div>
+
+  <div id="overlayLoading" class="overlay-loading">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <div class="font-black text-[var(--primary)] text-sm" id="overlayLoadingText">جاري المعالجة...</div>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="header-bar">
+      <div class="flex items-center justify-between gap-3">
+        <button class="icon-circle" onclick="goBackAction()">
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path id="backArrowPath" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+
+        <div class="text-center">
+          <div class="section-title" id="pageMainTitle">الدفع</div>
+          <div class="subtle" id="pageSubTitle">Checkout</div>
+        </div>
+
+        <div class="icon-circle">
+          <svg class="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-4 mb-4">
+      <div class="stepper">
+        <div class="step-node current" id="stepNode1">1</div>
+        <div class="step-label current" id="stepLabel1">المنتج</div>
+        <div class="step-line" id="stepLine1"></div>
+        <div class="step-node idle" id="stepNode2">2</div>
+        <div class="step-label idle" id="stepLabel2">البيانات</div>
+        <div class="step-line" id="stepLine2"></div>
+        <div class="step-node idle" id="stepNode3">3</div>
+        <div class="step-label idle" id="stepLabel3">الدفع</div>
+        <div class="step-line" id="stepLine3"></div>
+        <div class="step-node idle" id="stepNode4">4</div>
+        <div class="step-label idle" id="stepLabel4">التأكيد</div>
+      </div>
+    </div>
+
+    <section id="viewProduct" class="view-panel">
+      <div class="product-view">
+        <div class="card p-3">
+          <div class="slider-shell">
+            <div id="discountBadge" class="discount-chip hidden-view">0% -</div>
+
+            <button class="slider-btn prev" id="sliderPrevBtn" onclick="moveSlider(-1)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path id="prevArrowPath" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button class="slider-btn next" id="sliderNextBtn" onclick="moveSlider(1)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path id="nextArrowPath" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+
+            <div class="slider-track" id="productSliderTrack" onscroll="syncSliderDots()"></div>
+
+            <div class="logo-watermark">
+              <img id="watermarkLogo" src="" alt="logo">
+            </div>
+          </div>
+
+          <div class="slider-dots" id="productSliderDots"></div>
+
+          <div id="colorsWrap" class="mt-2 hidden-view">
+            <div class="field-label" id="availableColorsLabel">الألوان المتاحة</div>
+            <div class="color-row" id="colorsRow"></div>
+          </div>
+
+          <div id="sizesWrap" class="mt-5 hidden-view">
+            <div class="field-label" id="availableSizesLabel">المقاسات المتاحة</div>
+            <div class="size-row" id="sizesRow"></div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="card p-5">
+            <div class="subtle mb-1" id="selectedProductSubtle">المنتج المحدد</div>
+            <h1 id="productName" class="text-2xl font-black text-[var(--primary)] leading-9">-</h1>
+
+            <div class="mt-3 flex items-center gap-3 flex-wrap">
+              <div id="productOldPrice" class="text-gray-400 line-through text-lg font-black hidden-view">0 ₪</div>
+              <div id="productPrice" class="text-[30px] font-black text-[var(--primary)]">0 ₪</div>
+            </div>
+
+            <div id="productShortDesc" class="mt-3 text-sm text-gray-500 font-bold leading-7 hidden-view"></div>
+          </div>
+
+          <div class="card p-5">
+            <div class="field-label" id="selectedItemsLabel">المنتجات المختارة</div>
+            <div id="selectedItemsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-5 mt-4">
+        <div class="section-title !text-[20px] mb-1" id="customizeUnitsTitle">تخصيص كل قطعة</div>
+        <div class="subtle mb-4" id="customizeUnitsSub">يمكنك تحديد لون أو مقاس مختلف لكل قطعة من نفس المنتج</div>
+        <div id="unitsCustomizationWrap" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <section id="viewDetails" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1" id="orderDataTitle">بيانات الطلب</div>
+        <div class="subtle mb-4" id="orderDataSub">املأ البيانات المطلوبة</div>
+
+        <div id="globalFieldsWrap" class="space-y-4"></div>
+
+        <div id="shippingWrap" class="mt-5 hidden-view">
+          <div class="soft-divider"></div>
+          <div class="field-label" id="shippingZoneLabel">منطقة التوصيل</div>
+          <div class="select-wrap">
+            <select id="shippingZoneSelect" class="select" onchange="handleShippingChange()"></select>
+            <span class="select-arrow">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path id="selectArrowPath" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            </span>
+          </div>
+          <div class="subtle mt-2" id="shippingZoneSub">سيتم إضافة رسوم التوصيل تلقائيًا إلى الفاتورة.</div>
+        </div>
+
+        <div id="authOptionalWrap" class="mt-5">
+          <div class="soft-divider"></div>
+          <div class="field-label" id="authTitle">تسجيل الدخول</div>
+          <div class="status-box">
+            <div class="text-sm font-black text-gray-800 mb-1" id="authOptionalTitle">تسجيل الدخول اختياري</div>
+            <div class="text-xs text-gray-500 font-bold leading-6" id="authOptionalSub">يمكنك إكمال الطلب بدون تسجيل دخول، وفي النهاية ستحصل على كود متابعة الطلب.</div>
+
+            <div id="signedInBox" class="hidden-view mt-4">
+              <div class="field-preview">
+                <div class="k" id="currentUserLabel">المستخدم الحالي</div>
+                <div class="v" id="signedInText">-</div>
+              </div>
+              <button class="secondary-btn mt-3 w-full" onclick="logoutUser()" id="logoutBtnText">تسجيل الخروج</button>
+            </div>
+
+            <div id="guestBox" class="mt-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button type="button" class="ghost-btn w-full" onclick="goLoginPage()" id="loginBtnText">تسجيل الدخول</button>
+                <button type="button" class="secondary-btn w-full" onclick="continueWithoutLogin()" id="continueGuestBtnText">إكمال بدون تسجيل دخول</button>
+              </div>
+
+              <div id="guestQuickFields" class="mt-4 hidden-view">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label class="field-label" id="guestNameLabel">الاسم</label>
+                    <input id="guestName" class="field" placeholder="اكتب الاسم">
+                  </div>
+                  <div>
+                    <label class="field-label" id="guestPhoneLabel">رقم الجوال</label>
+                    <input id="guestPhone" class="field" placeholder="اكتب رقم الجوال">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="viewPayment" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1" id="paymentTitle">طريقة الدفع</div>
+        <div class="subtle mb-4" id="paymentSub">اختر الطريقة المناسبة لك</div>
+
+        <div id="paymentMethodsGrid" class="pay-method-grid"></div>
+        <div id="paymentMethodsEmpty" class="hidden-view status-box mt-3">لا توجد طرق دفع متاحة</div>
+      </div>
+
+      <div id="selectedMethodCard" class="card p-5 mb-4 hidden-view">
+        <div class="flex items-center gap-3 mb-5">
+          <img id="selectedMethodImage" src="" class="w-12 h-12 rounded-full border object-cover bg-white" alt="">
+          <div>
+            <div id="selectedMethodName" class="text-xl font-black text-[var(--primary)]">-</div>
+            <div class="subtle" id="selectedMethodSub">تفاصيل الطريقة المختارة</div>
+          </div>
+        </div>
+
+        <div id="paymentMethodCopyFieldsWrap" class="space-y-4"></div>
+        <div id="paymentMethodExtraImagesWrap" class="space-y-4 mt-4"></div>
+
+        <div class="pay-amount-box">
+          <div class="label" id="methodPayAmountLabel">المبلغ الذي ستدفعه</div>
+          <div class="amount" id="methodPayAmount">0 ₪</div>
+        </div>
+
+        <div id="payerFieldsSection" class="mt-5 hidden-view">
+          <div class="soft-divider"></div>
+          <div class="field-label" id="payerFieldsTitle">البيانات المطلوبة لهذه الطريقة</div>
+          <div id="payerFieldsWrap" class="space-y-4"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="viewConfirm" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1" id="summaryTitle">ملخص الطلب</div>
+        <div class="subtle mb-4" id="summarySub">راجع كل التفاصيل قبل الإرسال</div>
+
+        <div id="summaryItems" class="space-y-3 mb-4"></div>
+
+        <div class="soft-divider"></div>
+
+        <div class="space-y-3">
+          <div class="summary-row"><span class="k" id="summarySubtotalLabel">المبلغ الفرعي</span><span class="v" id="summarySubtotal">0 ₪</span></div>
+          <div class="summary-row"><span class="k" id="summaryShippingLabel">رسوم التوصيل</span><span class="v" id="summaryShipping">0 ₪</span></div>
+          <div class="summary-row"><span class="k" id="summaryVariantsLabel">التخصيص</span><span class="v" id="summaryVariantsCount">-</span></div>
+          <div class="summary-row"><span class="k" id="summaryMethodLabel">طريقة الدفع</span><span class="v" id="summaryMethod">-</span></div>
+          <div class="summary-row"><span class="k" id="summaryZoneLabel">منطقة التوصيل</span><span class="v" id="summaryZone">-</span></div>
+          <div class="summary-row"><span class="k" id="summaryAccountLabel">الحساب</span><span class="v" id="summaryAccountState">-</span></div>
+        </div>
+
+        <div class="summary-total">
+          <div class="k" id="summaryTotalLabel">الإجمالي</div>
+          <div class="v" id="summaryTotal">0 ₪</div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="field-label" id="summaryFieldsTitle">البيانات المدخلة</div>
+        <div id="summaryFieldsPreview" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <section id="viewDone" class="view-panel hidden-view">
+      <div class="card p-6 text-center">
+        <div class="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+
+        <div class="section-title !text-[22px] mb-2" id="doneTitle">تم إرسال الطلب بنجاح</div>
+        <div class="text-sm text-gray-500 font-bold leading-7 mb-5" id="doneSub">احتفظ بكود المتابعة التالي لمراقبة حالة طلبك من صفحة الطلبات.</div>
+
+        <div class="copy-box mx-auto max-w-[360px] mb-4">
+          <div class="copy-box-title" id="trackingCodeLabel">كود المتابعة</div>
+          <div id="doneTrackingCode" class="copy-box-value text-[24px] text-[var(--primary)] text-center tracking-wider">-</div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[480px] mx-auto">
+          <button class="primary-btn" onclick="goOrdersPage()" id="goOrdersBtn">فتح صفحة الطلبات</button>
+          <button class="secondary-btn" onclick="goHome()" id="backStoreBtn">العودة للمتجر</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="bottom-bar" id="bottomBar">
+    <button id="bottomPrimaryBtn" class="primary-btn w-full" onclick="handleBottomAction()">التالي</button>
+  </div>
+
+  <script>
+    firebase.initializeApp(firebaseConfig1885);
+    const rtdb = firebase.database();
+    const auth = firebase.auth();
+
+    const PATHS = {
+      store: FIREBASE_PATHS_1885.settingsStore,
+      products: FIREBASE_PATHS_1885.products,
+      paymentMethods: FIREBASE_PATHS_1885.settingsPaymentMethods,
+      orders: FIREBASE_PATHS_1885.orders,
+      shippingZones: "settings1885/shippingZones1885",
+      globalCheckoutFields: "settings1885/globalCheckoutFields1885",
+      users: "users1885"
+    };
+
+    const LOCAL_KEYS = {
+      checkoutSelection: "tofan_checkout_selection_1885",
+      lang: "tofan_lang_1885"
+    };
+
+    const I18N = {
+      ar: {
+        pageTitle: "Tofan Store | الدفع",
+        mainTitle: "الدفع",
+        pageSubTitle: "Checkout",
+        overlayLoading: "جاري المعالجة...",
+        step1: "المنتج",
+        step2: "البيانات",
+        step3: "الدفع",
+        step4: "التأكيد",
+        selectedProduct: "المنتج المحدد",
+        selectedItems: "المنتجات المختارة",
+        availableColors: "الألوان المتاحة",
+        availableSizes: "المقاسات المتاحة",
+        customizeUnitsTitle: "تخصيص كل قطعة",
+        customizeUnitsSub: "يمكنك تحديد لون أو مقاس مختلف لكل قطعة من نفس المنتج",
+        pieceLabel: "القطعة",
+        quantityLabel: "العدد",
+        colorLabel: "اللون",
+        sizeLabel: "المقاس",
+        defaultColor: "بدون تحديد لون",
+        defaultSize: "بدون تحديد مقاس",
+        orderDataTitle: "بيانات الطلب",
+        orderDataSub: "املأ البيانات المطلوبة",
+        shippingZone: "منطقة التوصيل",
+        shippingZoneSub: "سيتم إضافة رسوم التوصيل تلقائيًا إلى الفاتورة.",
+        chooseZone: "اختر منطقة التوصيل",
+        authTitle: "تسجيل الدخول",
+        authOptionalTitle: "تسجيل الدخول اختياري",
+        authOptionalSub: "يمكنك إكمال الطلب بدون تسجيل دخول، وفي النهاية ستحصل على كود متابعة الطلب.",
+        currentUser: "المستخدم الحالي",
+        logout: "تسجيل الخروج",
+        login: "تسجيل الدخول",
+        continueGuest: "إكمال بدون تسجيل دخول",
+        guestName: "الاسم",
+        guestPhone: "رقم الجوال",
+        guestNamePlaceholder: "اكتب الاسم",
+        guestPhonePlaceholder: "اكتب رقم الجوال",
+        paymentTitle: "طريقة الدفع",
+        paymentSub: "اختر الطريقة المناسبة لك",
+        paymentSelectedSub: "تفاصيل الطريقة المختارة",
+        payAmountLabel: "المبلغ الذي ستدفعه",
+        payerFieldsTitle: "البيانات المطلوبة لهذه الطريقة",
+        noPaymentMethods: "لا توجد طرق دفع متاحة",
+        fixedCodName: "الدفع عند الاستلام",
+        fixedCodField1: "طريقة الدفع",
+        fixedCodValue1: "يتم الدفع عند استلام الطلب",
+        fixedCodField2: "ملاحظة",
+        fixedCodValue2: "يمكنك تأكيد الطلب الآن والدفع لاحقًا عند الاستلام",
+        codSmall: "الدفع عند الاستلام",
+        customPaymentSmall: "تحويل / دفع إلكتروني",
+        summaryTitle: "ملخص الطلب",
+        summarySub: "راجع كل التفاصيل قبل الإرسال",
+        summarySubtotal: "المبلغ الفرعي",
+        summaryShipping: "رسوم التوصيل",
+        summaryVariants: "التخصيص",
+        summaryMethod: "طريقة الدفع",
+        summaryZone: "منطقة التوصيل",
+        summaryAccount: "الحساب",
+        summaryTotal: "الإجمالي",
+        summaryFieldsTitle: "البيانات المدخلة",
+        doneTitle: "تم إرسال الطلب بنجاح",
+        doneSub: "احتفظ بكود المتابعة التالي لمراقبة حالة طلبك من صفحة الطلبات.",
+        trackingCode: "كود المتابعة",
+        goOrders: "فتح صفحة الطلبات",
+        backStore: "العودة للمتجر",
+        next: "التالي",
+        toPayment: "متابعة إلى الدفع",
+        toReview: "مراجعة الطلب",
+        sendOrder: "إرسال الطلب",
+        noSelectedProducts: "لا توجد منتجات محددة",
+        noExtraFields: "لا توجد حقول إضافية مطلوبة.",
+        noExtraData: "لا توجد بيانات إضافية",
+        noPreparedMethodData: "لا توجد بيانات جاهزة لهذه الطريقة.",
+        noMethodFields: "لا توجد حقول مطلوبة لهذه الطريقة.",
+        withoutLogin: "بدون تسجيل دخول",
+        loggedIn: "مسجل دخول",
+        none: "بدون",
+        unitSelectionsCount: "قطعة مخصصة",
+        selectSizeFirst: "اختر المقاس",
+        selectPaymentMethod: "اختر طريقة الدفع",
+        fillRequiredFields: "يرجى تعبئة الحقول المطلوبة",
+        fillPaymentFields: "يرجى تعبئة بيانات طريقة الدفع",
+        chooseShippingZone: "اختر منطقة التوصيل",
+        completeGuestData: "أكمل الاسم ورقم الجوال أو سجل دخول",
+        chooseLoginOrGuest: "سجل دخول أو أكمل بدون تسجيل دخول",
+        guestContinueToast: "يمكنك الآن الإكمال بدون تسجيل دخول",
+        logoutSuccess: "تم تسجيل الخروج",
+        logoutFailed: "تعذر تسجيل الخروج",
+        orderSent: "تم إرسال الطلب بنجاح",
+        orderFailed: "تعذر إرسال الطلب",
+        noProduct: "لا يوجد منتج محدد",
+        followCode: "احتفظ بالكود",
+        productWord: "منتج",
+        fieldWord: "حقل",
+        colorWord: "لون",
+        pieceWord: "قطعة"
+      },
+      en: {
+        pageTitle: "Tofan Store | Checkout",
+        mainTitle: "Checkout",
+        pageSubTitle: "Checkout",
+        overlayLoading: "Processing...",
+        step1: "Product",
+        step2: "Details",
+        step3: "Payment",
+        step4: "Confirm",
+        selectedProduct: "Selected product",
+        selectedItems: "Selected items",
+        availableColors: "Available colors",
+        availableSizes: "Available sizes",
+        customizeUnitsTitle: "Customize each piece",
+        customizeUnitsSub: "You can choose a different color or size for each piece of the same product",
+        pieceLabel: "Piece",
+        quantityLabel: "Qty",
+        colorLabel: "Color",
+        sizeLabel: "Size",
+        defaultColor: "No color selected",
+        defaultSize: "No size selected",
+        orderDataTitle: "Order details",
+        orderDataSub: "Fill in the required information",
+        shippingZone: "Shipping zone",
+        shippingZoneSub: "Shipping fees will be added automatically to the invoice.",
+        chooseZone: "Choose shipping zone",
+        authTitle: "Sign in",
+        authOptionalTitle: "Sign in is optional",
+        authOptionalSub: "You can complete the order without signing in, and you will receive a tracking code at the end.",
+        currentUser: "Current user",
+        logout: "Log out",
+        login: "Sign in",
+        continueGuest: "Continue as guest",
+        guestName: "Name",
+        guestPhone: "Phone number",
+        guestNamePlaceholder: "Enter your name",
+        guestPhonePlaceholder: "Enter your phone number",
+        paymentTitle: "Payment method",
+        paymentSub: "Choose the method that suits you",
+        paymentSelectedSub: "Selected method details",
+        payAmountLabel: "Amount to pay",
+        payerFieldsTitle: "Required information for this method",
+        noPaymentMethods: "No payment methods available",
+        fixedCodName: "Cash on delivery",
+        fixedCodField1: "Payment method",
+        fixedCodValue1: "Payment will be made upon delivery",
+        fixedCodField2: "Note",
+        fixedCodValue2: "You can confirm the order now and pay later upon delivery",
+        codSmall: "Cash on delivery",
+        customPaymentSmall: "Bank transfer / online payment",
+        summaryTitle: "Order summary",
+        summarySub: "Review all details before submitting",
+        summarySubtotal: "Subtotal",
+        summaryShipping: "Shipping fee",
+        summaryVariants: "Customization",
+        summaryMethod: "Payment method",
+        summaryZone: "Shipping zone",
+        summaryAccount: "Account",
+        summaryTotal: "Total",
+        summaryFieldsTitle: "Entered information",
+        doneTitle: "Order submitted successfully",
+        doneSub: "Keep the following tracking code to follow your order from the orders page.",
+        trackingCode: "Tracking code",
+        goOrders: "Open orders page",
+        backStore: "Back to store",
+        next: "Next",
+        toPayment: "Continue to payment",
+        toReview: "Review order",
+        sendOrder: "Submit order",
+        noSelectedProducts: "No selected products",
+        noExtraFields: "No extra fields are required.",
+        noExtraData: "No extra data",
+        noPreparedMethodData: "No prepared data for this method.",
+        noMethodFields: "No fields required for this method.",
+        withoutLogin: "Guest",
+        loggedIn: "Signed in",
+        none: "None",
+        unitSelectionsCount: "customized pieces",
+        selectSizeFirst: "Choose a size",
+        selectPaymentMethod: "Choose a payment method",
+        fillRequiredFields: "Please fill in the required fields",
+        fillPaymentFields: "Please complete the payment details",
+        chooseShippingZone: "Choose a shipping zone",
+        completeGuestData: "Complete name and phone number or sign in",
+        chooseLoginOrGuest: "Sign in or continue as guest",
+        guestContinueToast: "You can now continue as guest",
+        logoutSuccess: "Signed out successfully",
+        logoutFailed: "Unable to sign out",
+        orderSent: "Order submitted successfully",
+        orderFailed: "Unable to submit order",
+        noProduct: "No product selected",
+        followCode: "Keep the code",
+        productWord: "Product",
+        fieldWord: "Field",
+        colorWord: "Color",
+        pieceWord: "Piece"
+      }
+    };
+
+    function currentLang(){
+      const saved = sessionStorage.getItem(LOCAL_KEYS.lang) || localStorage.getItem(LOCAL_KEYS.lang) || "ar";
+      return saved === "en" ? "en" : "ar";
+    }
+
+    let lang = currentLang();
+
+    function tr(key){
+      return I18N[lang]?.[key] || I18N.ar[key] || key;
+    }
+
+    const FIXED_COD_METHOD = () => ({
+      id: "__fixed_cod__",
+      name: tr("fixedCodName"),
+      image: "data:image/svg+xml;utf8," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none">
+          <rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="#14454d"/>
+          <rect x="4.5" y="7" width="15" height="10" rx="1.5" fill="#ffffff"/>
+          <circle cx="12" cy="12" r="2.5" fill="#f37021"/>
+          <path d="M7 9.5h2M15 14.5h2" stroke="#14454d" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      `),
+      copyFields: [
+        { label: tr("fixedCodField1"), value: tr("fixedCodValue1") },
+        { label: tr("fixedCodField2"), value: tr("fixedCodValue2") }
+      ],
+      extraImages: [],
+      payerFields: [],
+      isCod: true,
+      enabled: true,
+      fixed: true
+    });
+
+    let storeSettings = {};
+    let productsMap = {};
+    let paymentMethods = [];
+    let shippingZones = [];
+    let globalFields = [];
+    let currentUser = null;
+    let currentUserProfile = null;
+    let checkoutSelection = { source:"buy_now", items:[] };
+    let currentView = 1;
+    let selectedMethod = null;
+    let selectedShippingZone = null;
+    let withoutLoginMode = false;
+    let currentColorIndex = 0;
+    let currentSliderImages = [];
+    let focusedUnitKey = "";
+    let unitSelections = {};
+
+    function setLoadingBar(on){
+      const el = document.getElementById("topLoading");
+      if(on){
+        el.style.width = "65%";
+      }else{
+        el.style.width = "100%";
+        setTimeout(() => el.style.width = "0%", 260);
+      }
+    }
+
+    function setOverlayLoading(on){
+      document.getElementById("overlayLoading").style.display = on ? "flex" : "none";
+    }
+
+    function showToast(msg){
+      const old = document.querySelector(".toast");
+      if(old) old.remove();
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateX(-50%) translateY(16px)";
+        setTimeout(() => el.remove(), 220);
+      }, 2200);
+    }
+
+    function money(v){
+      return `${Number(v || 0).toFixed(2)} ₪`;
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function randomCode(len = 10){
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for(let i=0;i<len;i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+
+    function getDiscountPercent(price, oldPrice){
+      const p = Number(price || 0);
+      const o = Number(oldPrice || 0);
+      if(!(o > p && p > 0)) return 0;
+      return Math.round(((o - p) / o) * 100);
+    }
+
+    function setDirectionUi(){
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
+      document.body.style.direction = lang === "en" ? "ltr" : "rtl";
+      document.title = tr("pageTitle");
+
+      document.getElementById("pageMainTitle").textContent = tr("mainTitle");
+      document.getElementById("pageSubTitle").textContent = tr("pageSubTitle");
+      document.getElementById("overlayLoadingText").textContent = tr("overlayLoading");
+
+      document.getElementById("stepLabel1").textContent = tr("step1");
+      document.getElementById("stepLabel2").textContent = tr("step2");
+      document.getElementById("stepLabel3").textContent = tr("step3");
+      document.getElementById("stepLabel4").textContent = tr("step4");
+
+      document.getElementById("selectedProductSubtle").textContent = tr("selectedProduct");
+      document.getElementById("selectedItemsLabel").textContent = tr("selectedItems");
+      document.getElementById("availableColorsLabel").textContent = tr("availableColors");
+      document.getElementById("availableSizesLabel").textContent = tr("availableSizes");
+      document.getElementById("customizeUnitsTitle").textContent = tr("customizeUnitsTitle");
+      document.getElementById("customizeUnitsSub").textContent = tr("customizeUnitsSub");
+      document.getElementById("orderDataTitle").textContent = tr("orderDataTitle");
+      document.getElementById("orderDataSub").textContent = tr("orderDataSub");
+      document.getElementById("shippingZoneLabel").textContent = tr("shippingZone");
+      document.getElementById("shippingZoneSub").textContent = tr("shippingZoneSub");
+      document.getElementById("authTitle").textContent = tr("authTitle");
+      document.getElementById("authOptionalTitle").textContent = tr("authOptionalTitle");
+      document.getElementById("authOptionalSub").textContent = tr("authOptionalSub");
+      document.getElementById("currentUserLabel").textContent = tr("currentUser");
+      document.getElementById("logoutBtnText").textContent = tr("logout");
+      document.getElementById("loginBtnText").textContent = tr("login");
+      document.getElementById("continueGuestBtnText").textContent = tr("continueGuest");
+      document.getElementById("guestNameLabel").textContent = tr("guestName");
+      document.getElementById("guestPhoneLabel").textContent = tr("guestPhone");
+      document.getElementById("guestName").placeholder = tr("guestNamePlaceholder");
+      document.getElementById("guestPhone").placeholder = tr("guestPhonePlaceholder");
+      document.getElementById("paymentTitle").textContent = tr("paymentTitle");
+      document.getElementById("paymentSub").textContent = tr("paymentSub");
+      document.getElementById("selectedMethodSub").textContent = tr("paymentSelectedSub");
+      document.getElementById("methodPayAmountLabel").textContent = tr("payAmountLabel");
+      document.getElementById("payerFieldsTitle").textContent = tr("payerFieldsTitle");
+      document.getElementById("paymentMethodsEmpty").textContent = tr("noPaymentMethods");
+      document.getElementById("summaryTitle").textContent = tr("summaryTitle");
+      document.getElementById("summarySub").textContent = tr("summarySub");
+      document.getElementById("summarySubtotalLabel").textContent = tr("summarySubtotal");
+      document.getElementById("summaryShippingLabel").textContent = tr("summaryShipping");
+      document.getElementById("summaryVariantsLabel").textContent = tr("summaryVariants");
+      document.getElementById("summaryMethodLabel").textContent = tr("summaryMethod");
+      document.getElementById("summaryZoneLabel").textContent = tr("summaryZone");
+      document.getElementById("summaryAccountLabel").textContent = tr("summaryAccount");
+      document.getElementById("summaryTotalLabel").textContent = tr("summaryTotal");
+      document.getElementById("summaryFieldsTitle").textContent = tr("summaryFieldsTitle");
+      document.getElementById("doneTitle").textContent = tr("doneTitle");
+      document.getElementById("doneSub").textContent = tr("doneSub");
+      document.getElementById("trackingCodeLabel").textContent = tr("trackingCode");
+      document.getElementById("goOrdersBtn").textContent = tr("goOrders");
+      document.getElementById("backStoreBtn").textContent = tr("backStore");
+
+      document.getElementById("backArrowPath").setAttribute("d", lang === "en" ? "M9 19l7-7-7-7" : "M15 19l-7-7 7-7");
+      document.getElementById("prevArrowPath").setAttribute("d", lang === "en" ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7");
+      document.getElementById("nextArrowPath").setAttribute("d", lang === "en" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7");
+      document.getElementById("selectArrowPath").setAttribute("d", "M19 9l-7 7-7-7");
+
+      updateBottomButton();
+    }
+
+    function getLocalizedValue(obj, baseKey){
+      if(!obj || typeof obj !== "object") return "";
+      const enKey = `${baseKey}En`;
+      const arKey = `${baseKey}Ar`;
+
+      if(lang === "en"){
+        return obj[enKey] || obj[baseKey] || obj[arKey] || "";
+      }
+      return obj[arKey] || obj[baseKey] || obj[enKey] || "";
+    }
+
+    function setStep(step){
+      const nodes = [
+        document.getElementById("stepNode1"),
+        document.getElementById("stepNode2"),
+        document.getElementById("stepNode3"),
+        document.getElementById("stepNode4")
+      ];
+      const lines = [
+        document.getElementById("stepLine1"),
+        document.getElementById("stepLine2"),
+        document.getElementById("stepLine3")
+      ];
+      const labels = [
+        document.getElementById("stepLabel1"),
+        document.getElementById("stepLabel2"),
+        document.getElementById("stepLabel3"),
+        document.getElementById("stepLabel4")
+      ];
+
+      nodes.forEach(n => n.className = "step-node idle");
+      lines.forEach(l => l.className = "step-line");
+      labels.forEach(l => l.className = "step-label idle");
+
+      for(let i=0;i<step;i++){
+        if(i < step - 1){
+          nodes[i].className = "step-node done";
+          labels[i].className = "step-label done";
+          if(lines[i]) lines[i].className = "step-line done";
+        }else{
+          nodes[i].className = "step-node current";
+          labels[i].className = "step-label current";
+        }
+      }
+    }
+
+    function showView(step){
+      currentView = step;
+      ["viewProduct","viewDetails","viewPayment","viewConfirm","viewDone"].forEach((id, idx) => {
+        document.getElementById(id).classList.toggle("hidden-view", idx !== step - 1);
+      });
+      document.getElementById("bottomBar").classList.toggle("hidden-view", step === 5);
+      setStep(step);
+      updateBottomButton();
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    function updateBottomButton(){
+      const btn = document.getElementById("bottomPrimaryBtn");
+      if(currentView === 1) btn.textContent = tr("next");
+      if(currentView === 2) btn.textContent = tr("toPayment");
+      if(currentView === 3) btn.textContent = tr("toReview");
+      if(currentView === 4) btn.textContent = tr("sendOrder");
+    }
+
+    function handleBottomAction(){
+      if(currentView === 1){
+        if(!validateProductStep()) return;
+        showView(2);
+        return;
+      }
+      if(currentView === 2){
+        if(!validateDetailsStep()) return;
+        showView(3);
+        return;
+      }
+      if(currentView === 3){
+        if(!validatePaymentStep()) return;
+        buildSummary();
+        showView(4);
+        return;
+      }
+      if(currentView === 4){
+        submitOrder();
+      }
+    }
+
+    function goBackAction(){
+      if(currentView === 1){
+        goHome();
+        return;
+      }
+      if(currentView === 2) return showView(1);
+      if(currentView === 3) return showView(2);
+      if(currentView === 4) return showView(3);
+      if(currentView === 5) return goHome();
+    }
+
+    function goHome(){
+      window.location.href = "index.html";
+    }
+
+    function goOrdersPage(){
+      window.location.href = "order.html";
+    }
+
+    function goLoginPage(){
+      sessionStorage.setItem("login_redirect_1885", "pay.html");
+      window.location.href = "login.html";
+    }
+
+    async function logoutUser(){
+      try{
+        await auth.signOut();
+        currentUser = null;
+        currentUserProfile = null;
+        renderAuthState();
+        showToast(tr("logoutSuccess"));
+      }catch(e){
+        showToast(tr("logoutFailed"));
+      }
+    }
+
+    function continueWithoutLogin(){
+      withoutLoginMode = true;
+      document.getElementById("guestQuickFields").classList.remove("hidden-view");
+      showToast(tr("guestContinueToast"));
+    }
+
+    function normalizeProducts(raw){
+      const map = {};
+      Object.entries(raw || {}).forEach(([id, v]) => {
+        map[id] = {
+          id,
+          categoryId: v.categoryId || v.category || "",
+          nameAr: v.nameAr || v.name || "",
+          nameEn: v.nameEn || "",
+          descAr: v.descAr || v.desc || "",
+          descEn: v.descEn || "",
+          price: Number(v.price || 0),
+          oldPrice: Number(v.oldPrice || 0),
+          image1: v.image1 || v.image || v.front || "",
+          image2: v.image2 || v.image || v.back || "",
+          images: Array.isArray(v.images) ? v.images : [],
+          colorOptions: Array.isArray(v.colorOptions) ? v.colorOptions : [],
+          sizes: Array.isArray(v.sizes) ? v.sizes : [],
+          shippingFee: Number(v.shippingFee || 0),
+          freeShipping: v.freeShipping === true,
+          enableShipping: v.enableShipping === true,
+          enableCod: v.enableCod !== false,
+          enabled: v.enabled !== false
+        };
+      });
+      return map;
+    }
+
+    function normalizePaymentMethods(raw){
+      const fromDb = Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        name: getLocalizedValue(v, "name") || v.name || "",
+        image: v.image || "",
+        copyFields: Array.isArray(v.copyFields) ? v.copyFields.map(f => ({
+          ...f,
+          labelText: getLocalizedValue(f, "label") || f.label || "",
+          valueText: getLocalizedValue(f, "value") || f.value || ""
+        })) : [],
+        extraImages: Array.isArray(v.extraImages) ? v.extraImages.map(img => ({
+          ...img,
+          labelText: getLocalizedValue(img, "label") || img.label || ""
+        })) : [],
+        payerFields: Array.isArray(v.payerFields) ? v.payerFields.map(f => ({
+          ...f,
+          labelText: getLocalizedValue(f, "label") || f.label || "",
+          placeholderText: getLocalizedValue(f, "placeholder") || f.placeholder || ""
+        })) : [],
+        isCod: v.isCod === true,
+        enabled: v.enabled !== false
+      })).filter(x => x.enabled);
+
+      const fixed = FIXED_COD_METHOD();
+      const othersWithoutCod = fromDb.filter(x => !x.isCod);
+      const dbCod = fromDb.filter(x => x.isCod);
+
+      return [fixed, ...othersWithoutCod, ...dbCod];
+    }
+
+    function normalizeShippingZones(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        name: getLocalizedValue(v, "name") || v.name || "",
+        price: Number(v.price || 0),
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false
+      })).filter(x => x.enabled).sort((a,b) => a.order - b.order);
+    }
+
+    function normalizeGlobalFields(raw){
+      if(!Array.isArray(raw)) return [];
+      return raw.filter(x => x && x.type === "field").map((f, idx) => ({
+        ...f,
+        labelText: getLocalizedValue(f, "label") || f.label || `${tr("fieldWord")} ${idx + 1}`,
+        placeholderText: getLocalizedValue(f, "placeholder") || f.placeholder || "",
+        keyText: f.key || `field_${idx}`
+      }));
+    }
+
+    function getCheckoutItems(){
+      const raw = sessionStorage.getItem(LOCAL_KEYS.checkoutSelection);
+      if(!raw) return { source:"buy_now", items:[] };
+      try{
+        return JSON.parse(raw);
+      }catch{
+        return { source:"buy_now", items:[] };
+      }
+    }
+
+    function enrichCheckoutItems(items){
+      return (items || []).map(item => {
+        const db = productsMap[item.id] || {};
+        return {
+          id: item.id,
+          nameAr: item.nameAr || db.nameAr || "",
+          nameEn: item.nameEn || db.nameEn || "",
+          price: Number(item.price ?? db.price ?? 0),
+          qty: Number(item.qty || 1),
+          image1: item.image1 || db.image1 || "",
+          image2: item.image2 || db.image2 || "",
+          oldPrice: Number(db.oldPrice || 0),
+          descAr: db.descAr || "",
+          descEn: db.descEn || "",
+          images: Array.isArray(db.images) ? db.images : [],
+          colorOptions: Array.isArray(db.colorOptions) ? db.colorOptions : [],
+          sizes: Array.isArray(db.sizes) ? db.sizes : [],
+          shippingFee: Number(db.shippingFee || 0),
+          freeShipping: db.freeShipping === true,
+          enableShipping: db.enableShipping === true,
+          enableCod: db.enableCod !== false
+        };
+      });
+    }
+
+    function getProductTitle(item){
+      return lang === "en"
+        ? (item.nameEn || item.nameAr || tr("productWord"))
+        : (item.nameAr || item.nameEn || tr("productWord"));
+    }
+
+    function getProductDesc(item){
+      return lang === "en"
+        ? (item.descEn || item.descAr || "")
+        : (item.descAr || item.descEn || "");
+    }
+
+    function getPrimaryItem(){
+      return checkoutSelection.items[0] || null;
+    }
+
+    function getUnitKey(itemId, unitIndex){
+      return `${itemId}__${unitIndex}`;
+    }
+
+    function getColorName(color){
+      if(!color) return "";
+      return lang === "en"
+        ? (color.nameEn || color.name || color.nameAr || "")
+        : (color.nameAr || color.name || color.nameEn || "");
+    }
+
+    function normalizeSizesForDisplay(item){
+      const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+      return sizes.map(s => {
+        if(typeof s === "object"){
+          return {
+            raw: s,
+            value: lang === "en"
+              ? (s.nameEn || s.name || s.nameAr || "")
+              : (s.nameAr || s.name || s.nameEn || "")
+          };
+        }
+        return { raw: s, value: String(s || "").trim() };
+      }).filter(s => s.value);
+    }
+
+    function buildInitialUnitSelections(){
+      const next = {};
+      (checkoutSelection.items || []).forEach(item => {
+        const sizes = normalizeSizesForDisplay(item);
+        const defaultSize = sizes.length ? sizes[0].value : "";
+        const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+        const defaultColorIndex = colors.length ? 0 : -1;
+        const defaultColorName = defaultColorIndex > -1 ? getColorName(colors[0]) : "";
+        const defaultColorCode = defaultColorIndex > -1 ? (colors[0].code || "") : "";
+
+        for(let i = 0; i < Number(item.qty || 1); i++){
+          const key = getUnitKey(item.id, i);
+          next[key] = {
+            itemId: item.id,
+            unitIndex: i,
+            colorIndex: defaultColorIndex,
+            colorName: defaultColorName,
+            colorCode: defaultColorCode,
+            sizeValue: defaultSize
+          };
+        }
+      });
+      unitSelections = next;
+
+      const firstItem = getPrimaryItem();
+      focusedUnitKey = firstItem ? getUnitKey(firstItem.id, 0) : "";
+    }
+
+    function renderSelectedItems(){
+      const box = document.getElementById("selectedItemsList");
+      const items = checkoutSelection.items || [];
+      if(!items.length){
+        box.innerHTML = `<div class="status-box">${tr("noSelectedProducts")}</div>`;
+        return;
+      }
+
+      box.innerHTML = items.map(item => `
+        <div class="flex items-center gap-3 border border-[#eef2f6] rounded-2xl p-3">
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/120x140?text=Item')}" class="w-16 h-16 rounded-2xl object-cover border" alt="">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-black text-gray-800 line-clamp-2">${escapeHtml(getProductTitle(item))}</div>
+            <div class="text-xs text-gray-400 font-bold mt-1">${tr("quantityLabel")}: ${item.qty}</div>
+          </div>
+          <div class="text-sm font-black text-[var(--primary)]">${money(Number(item.price || 0) * Number(item.qty || 1))}</div>
+        </div>
+      `).join("");
+    }
+
+    function getOnlyColorImages(item){
+      const colorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      const result = [];
+      colorOptions.forEach(color => {
+        (color.images || []).forEach(img => {
+          if(img && !result.includes(img)) result.push(img);
+        });
+      });
+      return result;
+    }
+
+    function getInitialSliderImages(item){
+      const sliderImages = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+      if(sliderImages.length) return [...new Set(sliderImages)];
+
+      const colorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      if(colorOptions.length){
+        const firstColorImages = (colorOptions[0].images || []).filter(Boolean);
+        if(firstColorImages.length) return [...new Set(firstColorImages)];
+
+        const allColorImages = getOnlyColorImages(item);
+        if(allColorImages.length) return [...new Set(allColorImages)];
+      }
+
+      const fallbackImages = [item.image1, item.image2].filter(Boolean);
+      return fallbackImages.length ? [...new Set(fallbackImages)] : ["https://via.placeholder.com/800x800?text=Image"];
+    }
+
+    function getImagesForSelection(item, selection){
+      const sliderImages = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+      const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+
+      if(selection && selection.colorIndex > -1 && colors[selection.colorIndex]){
+        const imgs = (colors[selection.colorIndex].images || []).filter(Boolean);
+        if(imgs.length) return [...new Set(imgs)];
+      }
+
+      if(sliderImages.length) return [...new Set(sliderImages)];
+
+      const allColorImages = getOnlyColorImages(item);
+      if(allColorImages.length) return [...new Set(allColorImages)];
+
+      const fallbackImages = [item.image1, item.image2].filter(Boolean);
+      return fallbackImages.length ? [...new Set(fallbackImages)] : ["https://via.placeholder.com/800x800?text=Image"];
+    }
+
+    function renderProductPreview(){
+      const item = getPrimaryItem();
+      if(!item) return;
+
+      document.getElementById("productName").textContent = getProductTitle(item);
+      document.getElementById("productPrice").textContent = money(item.price);
+
+      const descBox = document.getElementById("productShortDesc");
+      const desc = getProductDesc(item);
+      descBox.textContent = desc;
+      descBox.classList.toggle("hidden-view", !desc);
+
+      const oldPriceEl = document.getElementById("productOldPrice");
+      if(item.oldPrice > item.price){
+        oldPriceEl.textContent = money(item.oldPrice);
+        oldPriceEl.classList.remove("hidden-view");
+      }else{
+        oldPriceEl.classList.add("hidden-view");
+      }
+
+      const dis = getDiscountPercent(item.price, item.oldPrice);
+      const badge = document.getElementById("discountBadge");
+      if(dis > 0){
+        badge.textContent = `${dis}% -`;
+        badge.classList.remove("hidden-view");
+      }else{
+        badge.classList.add("hidden-view");
+      }
+
+      document.getElementById("watermarkLogo").src = storeSettings.storeLogoUrl || "";
+
+      const currentSelection = unitSelections[focusedUnitKey] || null;
+      currentColorIndex = currentSelection ? currentSelection.colorIndex : 0;
+      currentSliderImages = getImagesForSelection(item, currentSelection);
+      renderSlider(currentSliderImages);
+      renderColors(item);
+      renderSizes(item);
+    }
+
+    function createSlide(img){
+      return `
+        <div class="slide-item fade-switch">
+          <div class="slide-loader"></div>
+          <img src="${escapeHtml(img)}" alt="product image" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+               onload="this.classList.add('loaded'); const l=this.previousElementSibling; if(l) l.style.display='none';"
+               onerror="this.classList.add('loaded'); const l=this.previousElementSibling; if(l) l.style.display='none';">
+        </div>
+      `;
+    }
+
+    function renderSlider(images){
+      const track = document.getElementById("productSliderTrack");
+      const dots = document.getElementById("productSliderDots");
+      const safeImages = Array.isArray(images) && images.length ? images : ["https://via.placeholder.com/800x800?text=Image"];
+
+      track.innerHTML = safeImages.map(img => createSlide(img)).join("");
+      dots.innerHTML = safeImages.map((_, i) => `<button class="slider-dot ${i===0?'active':''}" onclick="goToSlide(${i})"></button>`).join("");
+
+      const hasMany = safeImages.length > 1;
+      document.getElementById("sliderPrevBtn").style.display = hasMany ? "flex" : "none";
+      document.getElementById("sliderNextBtn").style.display = hasMany ? "flex" : "none";
+      track.scrollTo({ left: 0, behavior: "auto" });
+    }
+
+    function moveSlider(dir){
+      const track = document.getElementById("productSliderTrack");
+      track.scrollBy({ left: track.clientWidth * dir, behavior:"smooth" });
+      setTimeout(syncSliderDots, 220);
+    }
+
+    function goToSlide(index){
+      const track = document.getElementById("productSliderTrack");
+      track.scrollTo({ left: track.clientWidth * index, behavior:"smooth" });
+      setTimeout(syncSliderDots, 220);
+    }
+
+    function syncSliderDots(){
+      const track = document.getElementById("productSliderTrack");
+      const dots = [...document.querySelectorAll(".slider-dot")];
+      const idx = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+      dots.forEach((dot, i) => dot.classList.toggle("active", i === idx));
+    }
+
+    function renderColors(item){
+      const wrap = document.getElementById("colorsWrap");
+      const row = document.getElementById("colorsRow");
+      const colorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+
+      if(!colorOptions.length){
+        wrap.classList.add("hidden-view");
+        row.innerHTML = "";
+        return;
+      }
+
+      wrap.classList.remove("hidden-view");
+      row.innerHTML = colorOptions.map((color, idx) => `
+        <button type="button" onclick="selectFocusedUnitColor(${idx})" class="color-btn">
+          <span class="color-chip ${idx===currentColorIndex?'active':''}" style="background:${escapeHtml(color.code || '#ccc')}"></span>
+          <span class="color-name">${escapeHtml(getColorName(color) || tr("colorWord"))}</span>
+        </button>
+      `).join("");
+    }
+
+    function renderSizes(item){
+      const wrap = document.getElementById("sizesWrap");
+      const row = document.getElementById("sizesRow");
+      const sizes = normalizeSizesForDisplay(item);
+
+      if(!sizes.length){
+        wrap.classList.add("hidden-view");
+        row.innerHTML = "";
+        return;
+      }
+
+      wrap.classList.remove("hidden-view");
+      const activeSize = unitSelections[focusedUnitKey]?.sizeValue || "";
+
+      row.innerHTML = sizes.map(size => `
+        <button type="button" onclick="selectFocusedUnitSize('${escapeHtml(size.value)}')" class="size-btn">
+          <span class="size-pill ${activeSize === size.value ? 'active' : ''}">${escapeHtml(size.value)}</span>
+        </button>
+      `).join("");
+    }
+
+    function focusUnit(itemId, unitIndex){
+      focusedUnitKey = getUnitKey(itemId, unitIndex);
+      renderUnitsCustomization();
+      renderProductPreview();
+    }
+
+    function selectFocusedUnitColor(index){
+      const key = focusedUnitKey;
+      const item = checkoutSelection.items.find(x => x.id === unitSelections[key]?.itemId);
+      if(!item) return;
+      const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      const selected = colors[index];
+      if(!selected) return;
+
+      unitSelections[key].colorIndex = index;
+      unitSelections[key].colorName = getColorName(selected);
+      unitSelections[key].colorCode = selected.code || "";
+
+      currentColorIndex = index;
+      currentSliderImages = getImagesForSelection(item, unitSelections[key]);
+      renderSlider(currentSliderImages);
+      renderUnitsCustomization();
+      renderColors(item);
+    }
+
+    function selectFocusedUnitSize(size){
+      const key = focusedUnitKey;
+      if(!unitSelections[key]) return;
+      unitSelections[key].sizeValue = size;
+      renderUnitsCustomization();
+
+      document.querySelectorAll(".size-pill").forEach(el => {
+        el.classList.toggle("active", el.textContent.trim() === size);
+      });
+    }
+
+    function renderUnitsCustomization(){
+      const wrap = document.getElementById("unitsCustomizationWrap");
+      const items = checkoutSelection.items || [];
+      if(!items.length){
+        wrap.innerHTML = `<div class="status-box">${tr("noSelectedProducts")}</div>`;
+        return;
+      }
+
+      const blocks = [];
+
+      items.forEach(item => {
+        const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+        const sizes = normalizeSizesForDisplay(item);
+
+        for(let i = 0; i < Number(item.qty || 1); i++){
+          const key = getUnitKey(item.id, i);
+          const selection = unitSelections[key] || {
+            colorIndex: colors.length ? 0 : -1,
+            colorName: colors.length ? getColorName(colors[0]) : "",
+            sizeValue: sizes.length ? sizes[0].value : ""
+          };
+
+          blocks.push(`
+            <div class="unit-card ${focusedUnitKey === key ? 'ring-2 ring-[var(--primary)]' : ''}">
+              <div class="unit-card-head">
+                <div>
+                  <div class="font-black text-[15px] text-gray-800">${escapeHtml(getProductTitle(item))}</div>
+                  <div class="text-xs text-gray-400 font-bold mt-1">${tr("pieceLabel")} ${i + 1}</div>
+                </div>
+                <button type="button" class="unit-tag" onclick="focusUnit('${item.id}', ${i})">
+                  ${focusedUnitKey === key ? escapeHtml(tr("selectedProduct")) : `${escapeHtml(tr("pieceLabel"))} ${i + 1}`}
+                </button>
+              </div>
+
+              ${colors.length ? `
+                <div class="mb-3">
+                  <div class="field-label">${tr("colorLabel")}</div>
+                  <div class="color-row">
+                    ${colors.map((color, idx) => `
+                      <button type="button" onclick="selectUnitColor('${item.id}', ${i}, ${idx})" class="color-btn">
+                        <span class="color-chip ${selection.colorIndex === idx ? 'active' : ''}" style="background:${escapeHtml(color.code || '#ccc')}"></span>
+                        <span class="color-name">${escapeHtml(getColorName(color) || tr("colorWord"))}</span>
+                      </button>
+                    `).join("")}
+                  </div>
+                </div>
+              ` : ``}
+
+              ${sizes.length ? `
+                <div>
+                  <div class="field-label">${tr("sizeLabel")}</div>
+                  <div class="size-row">
+                    ${sizes.map(size => `
+                      <button type="button" onclick="selectUnitSize('${item.id}', ${i}, '${escapeHtml(size.value)}')" class="size-btn">
+                        <span class="size-pill ${selection.sizeValue === size.value ? 'active' : ''}">${escapeHtml(size.value)}</span>
+                      </button>
+                    `).join("")}
+                  </div>
+                </div>
+              ` : ``}
+
+              <div class="unit-preview">
+                <span>${tr("colorLabel")}: ${escapeHtml(selection.colorName || tr("defaultColor"))}</span>
+                <span>${tr("sizeLabel")}: ${escapeHtml(selection.sizeValue || tr("defaultSize"))}</span>
+              </div>
+            </div>
+          `);
+        }
+      });
+
+      wrap.innerHTML = blocks.join("");
+    }
+
+    function selectUnitColor(itemId, unitIndex, colorIndex){
+      const key = getUnitKey(itemId, unitIndex);
+      const item = checkoutSelection.items.find(x => x.id === itemId);
+      if(!item) return;
+      const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      const selected = colors[colorIndex];
+      if(!selected) return;
+
+      unitSelections[key].colorIndex = colorIndex;
+      unitSelections[key].colorName = getColorName(selected);
+      unitSelections[key].colorCode = selected.code || "";
+
+      if(focusedUnitKey === key){
+        currentColorIndex = colorIndex;
+        currentSliderImages = getImagesForSelection(item, unitSelections[key]);
+        renderSlider(currentSliderImages);
+        renderColors(item);
+      }
+
+      renderUnitsCustomization();
+    }
+
+    function selectUnitSize(itemId, unitIndex, sizeValue){
+      const key = getUnitKey(itemId, unitIndex);
+      if(!unitSelections[key]) return;
+      unitSelections[key].sizeValue = sizeValue;
+
+      if(focusedUnitKey === key){
+        document.querySelectorAll(".size-pill").forEach(el => {
+          el.classList.toggle("active", el.textContent.trim() === sizeValue);
+        });
+      }
+
+      renderUnitsCustomization();
+    }
+
+    function validateProductStep(){
+      const items = checkoutSelection.items || [];
+      if(!items.length){
+        showToast(tr("noProduct"));
+        return false;
+      }
+
+      for(const item of items){
+        const sizes = normalizeSizesForDisplay(item);
+        if(!sizes.length) continue;
+
+        for(let i = 0; i < Number(item.qty || 1); i++){
+          const key = getUnitKey(item.id, i);
+          if(!unitSelections[key]?.sizeValue){
+            showToast(tr("selectSizeFirst"));
+            focusUnit(item.id, i);
+            return false;
+          }
+        }
+      }
+
+      return true;
+    }
+
+    function renderGlobalFields(){
+      const wrap = document.getElementById("globalFieldsWrap");
+      if(!globalFields.length){
+        wrap.innerHTML = `<div class="status-box">${tr("noExtraFields")}</div>`;
+        return;
+      }
+
+      wrap.innerHTML = globalFields.map((field, idx) => `
+        <div>
+          <label class="field-label">${escapeHtml(field.labelText || `${tr("fieldWord")} ${idx+1}`)}${field.required ? ' <span style="color:#ef4444">*</span>' : ''}</label>
+          <input
+            id="globalField_${idx}"
+            class="field"
+            type="${field.inputType === 'number' ? 'number' : 'text'}"
+            placeholder="${escapeHtml(field.placeholderText || '')}"
+            data-key="${escapeHtml(field.keyText || `field_${idx}`)}"
+            data-label="${escapeHtml(field.labelText || `${tr("fieldWord")} ${idx+1}`)}"
+            data-required="${field.required ? 'true' : 'false'}"
+          >
+        </div>
+      `).join("");
+    }
+
+    function renderShippingSection(){
+      const needsShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      const wrap = document.getElementById("shippingWrap");
+      const select = document.getElementById("shippingZoneSelect");
+
+      if(!needsShipping || !shippingZones.length){
+        wrap.classList.add("hidden-view");
+        selectedShippingZone = null;
+        return;
+      }
+
+      wrap.classList.remove("hidden-view");
+      select.innerHTML = `
+        <option value="">${escapeHtml(tr("chooseZone"))}</option>
+        ${shippingZones.map(z => `<option value="${z.id}">${escapeHtml(z.name)} - ${money(z.price)}</option>`).join("")}
+      `;
+    }
+
+    function handleShippingChange(){
+      const val = document.getElementById("shippingZoneSelect").value;
+      selectedShippingZone = shippingZones.find(z => z.id === val) || null;
+      updateMethodPayAmount();
+    }
+
+    function renderAuthState(){
+      const signedIn = !!currentUser;
+      document.getElementById("signedInBox").classList.toggle("hidden-view", !signedIn);
+      document.getElementById("guestBox").classList.toggle("hidden-view", signedIn);
+
+      if(signedIn){
+        const name = currentUserProfile?.displayName || currentUser.displayName || currentUser.email || "User";
+        document.getElementById("signedInText").textContent = name;
+      }
+    }
+
+    function getAvailablePaymentMethods(){
+      let methods = [...paymentMethods];
+      const allowCodByProducts = checkoutSelection.items.every(i => i.enableCod !== false);
+
+      if(!allowCodByProducts){
+        methods = methods.filter(m => !m.isCod);
+      }
+
+      return methods;
+    }
+
+    function renderPaymentMethods(){
+      const grid = document.getElementById("paymentMethodsGrid");
+      const empty = document.getElementById("paymentMethodsEmpty");
+
+      const methods = getAvailablePaymentMethods();
+
+      if(!methods.length){
+        grid.innerHTML = "";
+        empty.classList.remove("hidden-view");
+        return;
+      }
+
+      empty.classList.add("hidden-view");
+      grid.innerHTML = methods.map(method => `
+        <button type="button" class="pay-method ${selectedMethod?.id === method.id ? 'selected' : ''}" onclick="selectMethod('${method.id}')">
+          <div class="flex items-center gap-3">
+            <img src="${escapeHtml(method.image || 'https://via.placeholder.com/80?text=Pay')}" alt="">
+            <div class="flex-1 ${lang === "en" ? "text-left" : "text-right"}">
+              <div class="text-sm font-black text-gray-800">${escapeHtml(method.name || tr("paymentTitle"))}</div>
+              <div class="text-xs text-gray-400 font-bold mt-1">${method.isCod ? tr("codSmall") : tr("customPaymentSmall")}</div>
+            </div>
+          </div>
+        </button>
+      `).join("");
+    }
+
+    function selectMethod(id){
+      const methods = getAvailablePaymentMethods();
+      selectedMethod = methods.find(m => m.id === id) || null;
+      renderPaymentMethods();
+      renderSelectedMethod();
+      updateMethodPayAmount();
+    }
+
+    function renderSelectedMethod(){
+      const card = document.getElementById("selectedMethodCard");
+      const copyWrap = document.getElementById("paymentMethodCopyFieldsWrap");
+      const imgsWrap = document.getElementById("paymentMethodExtraImagesWrap");
+      const payerSection = document.getElementById("payerFieldsSection");
+      const payerWrap = document.getElementById("payerFieldsWrap");
+
+      if(!selectedMethod){
+        card.classList.add("hidden-view");
+        return;
+      }
+
+      card.classList.remove("hidden-view");
+      document.getElementById("selectedMethodName").textContent = selectedMethod.name || tr("paymentTitle");
+      document.getElementById("selectedMethodImage").src = selectedMethod.image || "https://via.placeholder.com/80?text=Pay";
+
+      copyWrap.innerHTML = (selectedMethod.copyFields || []).map(field => `
+        <div class="copy-box">
+          <div class="copy-box-title">${escapeHtml(field.labelText || field.label || tr("fieldWord"))}</div>
+          <div class="copy-box-value">${escapeHtml(field.valueText || field.value || "-")}</div>
+        </div>
+      `).join("") || `<div class="status-box">${tr("noPreparedMethodData")}</div>`;
+
+      imgsWrap.innerHTML = (selectedMethod.extraImages || []).map(img => `
+        <div class="card p-3">
+          ${img.labelText ? `<div class="field-label">${escapeHtml(img.labelText)}</div>` : ``}
+          <img src="${escapeHtml(img.url || 'https://via.placeholder.com/700x300?text=Image')}" class="w-full rounded-2xl border object-cover bg-white" alt="">
+        </div>
+      `).join("");
+
+      if(selectedMethod.isCod){
+        payerSection.classList.add("hidden-view");
+        payerWrap.innerHTML = "";
+      }else{
+        payerSection.classList.remove("hidden-view");
+
+        payerWrap.innerHTML = (selectedMethod.payerFields || []).map((field, idx) => `
+          <div>
+            <label class="field-label">${escapeHtml(field.labelText || field.label || tr("fieldWord"))}${field.required !== false ? ' <span style="color:#ef4444">*</span>' : ''}</label>
+            <input
+              id="payerField_${idx}"
+              class="field"
+              type="${field.inputType === 'number' ? 'number' : 'text'}"
+              placeholder="${escapeHtml(field.placeholderText || field.placeholder || '')}"
+              data-key="${escapeHtml(field.key || `payer_${idx}`)}"
+              data-label="${escapeHtml(field.labelText || field.label || tr("fieldWord"))}"
+              data-required="${field.required !== false ? 'true' : 'false'}"
+            >
+          </div>
+        `).join("") || `<div class="status-box">${tr("noMethodFields")}</div>`;
+      }
+    }
+
+    function updateMethodPayAmount(){
+      document.getElementById("methodPayAmount").textContent = money(getGrandTotal());
+    }
+
+    function collectGlobalFieldValues(){
+      const values = {};
+      const labels = {};
+      let ok = true;
+
+      globalFields.forEach((field, idx) => {
+        const el = document.getElementById(`globalField_${idx}`);
+        if(!el) return;
+        el.classList.remove("danger-ring");
+        const value = String(el.value || "").trim();
+        const required = field.required === true;
+
+        if(required && !value){
+          ok = false;
+          el.classList.add("danger-ring");
+        }
+
+        values[field.keyText || `field_${idx}`] = value;
+        labels[field.keyText || `field_${idx}`] = field.labelText || `${tr("fieldWord")} ${idx+1}`;
+      });
+
+      return { ok, values, labels };
+    }
+
+    function collectPayerFieldValues(){
+      const values = {};
+      const labels = {};
+      let ok = true;
+
+      (selectedMethod?.payerFields || []).forEach((field, idx) => {
+        const el = document.getElementById(`payerField_${idx}`);
+        if(!el) return;
+        el.classList.remove("danger-ring");
+        const value = String(el.value || "").trim();
+        const required = field.required !== false;
+
+        if(required && !value){
+          ok = false;
+          el.classList.add("danger-ring");
+        }
+
+        values[field.key || `payer_${idx}`] = value;
+        labels[field.key || `payer_${idx}`] = field.labelText || field.label || `${tr("fieldWord")} ${idx+1}`;
+      });
+
+      return { ok, values, labels };
+    }
+
+    function validateDetailsStep(){
+      const globalCollected = collectGlobalFieldValues();
+      if(!globalCollected.ok){
+        showToast(tr("fillRequiredFields"));
+        return false;
+      }
+
+      const needsShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      if(needsShipping && !selectedShippingZone){
+        showToast(tr("chooseShippingZone"));
+        document.getElementById("shippingZoneSelect").classList.add("danger-ring");
+        return false;
+      }else{
+        document.getElementById("shippingZoneSelect")?.classList.remove("danger-ring");
+      }
+
+      if(!currentUser){
+        if(withoutLoginMode){
+          const name = String(document.getElementById("guestName").value || "").trim();
+          const phone = String(document.getElementById("guestPhone").value || "").trim();
+          document.getElementById("guestName").classList.remove("danger-ring");
+          document.getElementById("guestPhone").classList.remove("danger-ring");
+
+          if(!name || !phone){
+            if(!name) document.getElementById("guestName").classList.add("danger-ring");
+            if(!phone) document.getElementById("guestPhone").classList.add("danger-ring");
+            showToast(tr("completeGuestData"));
+            return false;
+          }
+        }else{
+          showToast(tr("chooseLoginOrGuest"));
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function validatePaymentStep(){
+      if(!selectedMethod){
+        showToast(tr("selectPaymentMethod"));
+        return false;
+      }
+
+      if(selectedMethod.isCod){
+        return true;
+      }
+
+      const payer = collectPayerFieldValues();
+      if(!payer.ok){
+        showToast(tr("fillPaymentFields"));
+        return false;
+      }
+
+      return true;
+    }
+
+    function getSubtotal(){
+      return checkoutSelection.items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.qty || 1)), 0);
+    }
+
+    function getShippingTotal(){
+      const hasProductShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      if(!hasProductShipping) return 0;
+
+      let total = 0;
+      checkoutSelection.items.forEach(item => {
+        if(item.enableShipping !== true) return;
+        if(item.freeShipping === true) return;
+
+        const productShippingFee = Number(item.shippingFee || 0);
+        if(productShippingFee > 0){
+          total += productShippingFee * Number(item.qty || 1);
+        }
+      });
+
+      if(selectedShippingZone){
+        total += Number(selectedShippingZone.price || 0);
+      }
+
+      return total;
+    }
+
+    function getGrandTotal(){
+      return getSubtotal() + getShippingTotal();
+    }
+
+    function getUnitSelectionsArray(){
+      const list = [];
+      (checkoutSelection.items || []).forEach(item => {
+        for(let i = 0; i < Number(item.qty || 1); i++){
+          const key = getUnitKey(item.id, i);
+          const selection = unitSelections[key] || {};
+          list.push({
+            key,
+            itemId: item.id,
+            itemNameAr: item.nameAr || "",
+            itemNameEn: item.nameEn || "",
+            pieceNumber: i + 1,
+            colorName: selection.colorName || "",
+            colorCode: selection.colorCode || "",
+            sizeValue: selection.sizeValue || ""
+          });
+        }
+      });
+      return list;
+    }
+
+    function buildSummary(){
+      const itemsBox = document.getElementById("summaryItems");
+      itemsBox.innerHTML = checkoutSelection.items.map(item => `
+        <div class="flex items-center gap-3 border border-[#eef2f6] rounded-2xl p-3">
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/120x140?text=Item')}" class="w-16 h-16 rounded-2xl object-cover border" alt="">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-black text-gray-800 line-clamp-2">${escapeHtml(getProductTitle(item))}</div>
+            <div class="text-xs text-gray-400 font-bold mt-1">${tr("quantityLabel")}: ${item.qty}</div>
+          </div>
+          <div class="text-sm font-black text-[var(--primary)]">${money(Number(item.price || 0) * Number(item.qty || 1))}</div>
+        </div>
+      `).join("");
+
+      const allUnitSelections = getUnitSelectionsArray();
+
+      document.getElementById("summarySubtotal").textContent = money(getSubtotal());
+      document.getElementById("summaryShipping").textContent = money(getShippingTotal());
+      document.getElementById("summaryMethod").textContent = selectedMethod?.name || "-";
+      document.getElementById("summaryZone").textContent = selectedShippingZone?.name || tr("none");
+      document.getElementById("summaryTotal").textContent = money(getGrandTotal());
+      document.getElementById("summaryAccountState").textContent = currentUser ? tr("loggedIn") : tr("withoutLogin");
+      document.getElementById("summaryVariantsCount").textContent = `${allUnitSelections.length} ${tr("unitSelectionsCount")}`;
+
+      const globalCollected = collectGlobalFieldValues();
+      const payerCollected = selectedMethod?.isCod ? { values:{}, labels:{} } : collectPayerFieldValues();
+      const previewBox = document.getElementById("summaryFieldsPreview");
+
+      const rows = [];
+
+      allUnitSelections.forEach(unit => {
+        rows.push(`
+          <div class="field-preview">
+            <div class="k">${escapeHtml((lang === "en" ? (unit.itemNameEn || unit.itemNameAr) : (unit.itemNameAr || unit.itemNameEn)) || tr("productWord"))} - ${tr("pieceLabel")} ${unit.pieceNumber}</div>
+            <div class="v">${tr("colorLabel")}: ${escapeHtml(unit.colorName || tr("defaultColor"))} | ${tr("sizeLabel")}: ${escapeHtml(unit.sizeValue || tr("defaultSize"))}</div>
+          </div>
+        `);
+      });
+
+      Object.keys(globalCollected.values).forEach(key => {
+        const value = globalCollected.values[key];
+        if(String(value).trim()){
+          rows.push(`<div class="field-preview"><div class="k">${escapeHtml(globalCollected.labels[key])}</div><div class="v">${escapeHtml(value)}</div></div>`);
+        }
+      });
+
+      if(!currentUser && withoutLoginMode){
+        const name = String(document.getElementById("guestName").value || "").trim();
+        const phone = String(document.getElementById("guestPhone").value || "").trim();
+        if(name) rows.push(`<div class="field-preview"><div class="k">${tr("guestName")}</div><div class="v">${escapeHtml(name)}</div></div>`);
+        if(phone) rows.push(`<div class="field-preview"><div class="k">${tr("guestPhone")}</div><div class="v">${escapeHtml(phone)}</div></div>`);
+      }
+
+      if(selectedShippingZone){
+        rows.push(`<div class="field-preview"><div class="k">${tr("shippingZone")}</div><div class="v">${escapeHtml(selectedShippingZone.name)} - ${money(selectedShippingZone.price)}</div></div>`);
+      }
+
+      Object.keys(payerCollected.values).forEach(key => {
+        const value = payerCollected.values[key];
+        if(String(value).trim()){
+          rows.push(`<div class="field-preview"><div class="k">${escapeHtml(payerCollected.labels[key])}</div><div class="v">${escapeHtml(value)}</div></div>`);
+        }
+      });
+
+      previewBox.innerHTML = rows.length ? rows.join("") : `<div class="status-box">${tr("noExtraData")}</div>`;
+    }
+
+    async function submitOrder(){
+      setOverlayLoading(true);
+      try{
+        const globalCollected = collectGlobalFieldValues();
+        const payerCollected = selectedMethod?.isCod ? { values:{}, labels:{} } : collectPayerFieldValues();
+        const trackingCode = randomCode(10);
+        const allUnitSelections = getUnitSelectionsArray();
+
+        const guestName = !currentUser && withoutLoginMode ? String(document.getElementById("guestName").value || "").trim() : "";
+        const guestPhone = !currentUser && withoutLoginMode ? String(document.getElementById("guestPhone").value || "").trim() : "";
+
+        const order = {
+          trackingCode,
+          lang,
+          source: checkoutSelection.source || "buy_now",
+          items: checkoutSelection.items.map(item => ({
+            id: item.id,
+            nameAr: item.nameAr || "",
+            nameEn: item.nameEn || "",
+            price: Number(item.price || 0),
+            qty: Number(item.qty || 1),
+            image1: item.image1 || "",
+            image2: item.image2 || "",
+            oldPrice: Number(item.oldPrice || 0),
+            colorOptions: item.colorOptions || [],
+            sizes: item.sizes || [],
+            images: item.images || []
+          })),
+
+          unitSelections: allUnitSelections,
+
+          pricing: {
+            subtotal: Number(getSubtotal()),
+            shippingTotal: Number(getShippingTotal()),
+            total: Number(getGrandTotal()),
+            displaySubtotal: money(getSubtotal()),
+            displayShipping: money(getShippingTotal()),
+            displayTotal: money(getGrandTotal())
+          },
+
+          shippingZone: selectedShippingZone ? {
+            id: selectedShippingZone.id,
+            name: selectedShippingZone.name,
+            price: Number(selectedShippingZone.price || 0),
+            displayPrice: money(selectedShippingZone.price || 0)
+          } : null,
+
+          checkoutFields: globalCollected.values || {},
+          checkoutFieldLabels: globalCollected.labels || {},
+
+          paymentMethodId: selectedMethod?.id || "",
+          paymentMethodName: selectedMethod?.name || "",
+          paymentMethodType: selectedMethod?.isCod ? "cash_on_delivery" : "custom_payment",
+          paymentMethodSnapshot: selectedMethod ? {
+            id: selectedMethod.id,
+            name: selectedMethod.name,
+            image: selectedMethod.image || "",
+            isCod: selectedMethod.isCod === true,
+            copyFields: selectedMethod.copyFields || [],
+            extraImages: selectedMethod.extraImages || [],
+            payerFields: selectedMethod.payerFields || []
+          } : null,
+
+          paymentSubmission: {
+            mode: selectedMethod?.isCod ? "cash_on_delivery" : "custom_payment",
+            payerFields: payerCollected.values || {},
+            payerFieldLabels: payerCollected.labels || {}
+          },
+
+          customerUserId: currentUser?.uid || "",
+          customerEmail: currentUser?.email || "",
+          customerName: currentUserProfile?.displayName || currentUser?.displayName || "",
+          name: guestName || currentUserProfile?.displayName || currentUser?.displayName || "",
+          phone: guestPhone || "",
+          withoutLogin: !currentUser,
+
+          status: "pending",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        const newRef = await rtdb.ref(PATHS.orders).push(order);
+        const orderId = newRef.key;
+        if(!orderId) throw new Error("Order key not generated");
+
+        if(currentUser?.uid){
+          try{
+            await rtdb.ref(`${PATHS.users}/${currentUser.uid}/orders/${orderId}`).set(true);
+          }catch(e){}
+        }
+
+        document.getElementById("doneTrackingCode").textContent = trackingCode;
+        showView(5);
+        showToast(tr("orderSent"));
+      }catch(err){
+        console.error(err);
+        showToast(tr("orderFailed"));
+      }finally{
+        setOverlayLoading(false);
+      }
+    }
+
+    async function loadUserProfile(){
+      if(!currentUser) return null;
+      try{
+        const snap = await rtdb.ref(`${PATHS.users}/${currentUser.uid}`).get();
+        currentUserProfile = snap.val() || {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || ""
+        };
+        return currentUserProfile;
+      }catch{
+        currentUserProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || ""
+        };
+        return currentUserProfile;
+      }
+    }
+
+    async function loadAll(){
+      setLoadingBar(true);
+      try{
+        setDirectionUi();
+        checkoutSelection = getCheckoutItems();
+
+        const [storeSnap, productsSnap, methodsSnap, shippingSnap, globalFieldsSnap] = await Promise.all([
+          rtdb.ref(PATHS.store).get(),
+          rtdb.ref(PATHS.products).get(),
+          rtdb.ref(PATHS.paymentMethods).get(),
+          rtdb.ref(PATHS.shippingZones).get(),
+          rtdb.ref(PATHS.globalCheckoutFields).get()
+        ]);
+
+        storeSettings = storeSnap.val() || {};
+        productsMap = normalizeProducts(productsSnap.val() || {});
+        paymentMethods = normalizePaymentMethods(methodsSnap.val() || {});
+        shippingZones = normalizeShippingZones(shippingSnap.val() || {});
+        globalFields = normalizeGlobalFields(globalFieldsSnap.val() || []);
+
+        checkoutSelection.items = enrichCheckoutItems(checkoutSelection.items || []);
+
+        if(!checkoutSelection.items.length){
+          showToast(tr("noSelectedProducts"));
+          setTimeout(goHome, 600);
+          return;
+        }
+
+        buildInitialUnitSelections();
+
+        const logo = storeSettings.storeLogoUrl || "";
+        document.getElementById("watermarkLogo").src = logo;
+
+        renderSelectedItems();
+        renderProductPreview();
+        renderUnitsCustomization();
+        renderGlobalFields();
+        renderShippingSection();
+        renderAuthState();
+
+        const availableMethods = getAvailablePaymentMethods();
+        if(availableMethods.length && !selectedMethod){
+          selectedMethod = availableMethods[0];
+        }
+
+        renderPaymentMethods();
+        renderSelectedMethod();
+        updateMethodPayAmount();
+        showView(1);
+      }finally{
+        setLoadingBar(false);
+      }
+    }
+
+    function authListener(){
+      auth.onAuthStateChanged(async user => {
+        currentUser = user || null;
+        if(currentUser){
+          withoutLoginMode = false;
+          await loadUserProfile();
+        }else{
+          currentUserProfile = null;
+        }
+        renderAuthState();
+      });
+    }
+
+    window.addEventListener("load", async () => {
+      authListener();
+      await loadAll();
+    });
+  </script>
+</body>
+</html>
