@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tofan Store | الدفع</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    :root{
+      --primary:#14454d;
+      --accent:#f37021;
+      --bg:#f5f7fa;
+      --line:#e8edf2;
+      --text:#0f172a;
+      --muted:#64748b;
+      --success:#16a34a;
+      --danger:#dc2626;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    .top-loading{
+      position:fixed;top:0;right:0;height:3px;width:0;z-index:9999;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+      transition:width .3s ease;
+    }
+
+    .overlay-loading{
+      position:fixed;inset:0;background:rgba(255,255,255,.84);
+      backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;
+      z-index:9998;
+    }
+
+    .loader-box{
+      background:#fff;border:1px solid var(--line);border-radius:26px;
+      padding:24px 28px;display:flex;flex-direction:column;align-items:center;gap:12px;
+      box-shadow:0 20px 60px rgba(0,0,0,.1);
+    }
+
+    .spinner{
+      width:44px;height:44px;border-radius:999px;
+      border:4px solid #e5e7eb;border-top-color:var(--primary);
+      animation:spin .8s linear infinite;
+    }
+
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .page-wrap{max-width:920px;margin:auto;padding:14px 14px 130px}
+
+    .card{
+      background:#fff;border:1px solid var(--line);border-radius:28px;
+      box-shadow:0 10px 30px rgba(0,0,0,.04);
+    }
+
+    .header-bar{
+      position:sticky;top:0;z-index:30;background:rgba(245,247,250,.96);
+      backdrop-filter:blur(10px);padding:10px 0 12px;margin-bottom:8px;
+    }
+
+    .icon-circle{
+      width:44px;height:44px;border-radius:999px;background:#fff;border:1px solid var(--line);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+      box-shadow:0 8px 20px rgba(0,0,0,.04);
+    }
+
+    .section-title{
+      font-size:22px;font-weight:900;color:var(--primary);
+    }
+
+    .subtle{
+      color:#94a3b8;font-weight:800;font-size:12px;
+    }
+
+    .field-label{
+      display:block;margin-bottom:8px;margin-right:4px;
+      font-size:12px;font-weight:900;color:#64748b;
+    }
+
+    .field, .select, .textarea{
+      width:100%;border:1px solid #e5e7eb;background:#f8fafc;color:#111827;
+      border-radius:18px;padding:13px 14px;outline:none;font-weight:800;
+      transition:.2s ease;
+    }
+    .field:focus, .select:focus, .textarea:focus{
+      border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(20,69,77,.08);
+    }
+
+    .primary-btn, .secondary-btn, .ghost-btn{
+      border:none;border-radius:18px;padding:14px 16px;font-weight:900;cursor:pointer;
+      transition:.2s ease;
+    }
+    .primary-btn{background:var(--primary);color:#fff;box-shadow:0 14px 28px rgba(20,69,77,.18)}
+    .secondary-btn{background:#f3f4f6;color:#334155}
+    .ghost-btn{background:#fff;border:1px solid #dfe7ee;color:var(--primary)}
+    .primary-btn:active,.secondary-btn:active,.ghost-btn:active{transform:scale(.98)}
+
+    .stepper{
+      display:flex;align-items:center;gap:8px;overflow:auto;padding-bottom:4px;
+    }
+    .step-node{
+      width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:900;flex:0 0 36px;
+    }
+    .step-node.done{background:var(--success);color:#fff}
+    .step-node.current{background:#111827;color:#fff;border:4px solid #e5e7eb}
+    .step-node.idle{background:#e5e7eb;color:#6b7280}
+    .step-line{
+      height:4px;min-width:26px;border-radius:999px;background:#d1d5db;flex:1;
+    }
+    .step-line.done{background:var(--success)}
+    .step-label{font-size:12px;font-weight:900;white-space:nowrap}
+    .step-label.done{color:var(--success)}
+    .step-label.current{color:#111827}
+    .step-label.idle{color:#6b7280}
+
+    .product-view{
+      display:grid;grid-template-columns:1.06fr .94fr;gap:16px;
+    }
+    @media (max-width:740px){
+      .product-view{grid-template-columns:1fr}
+    }
+
+    .items-tabs{
+      display:flex;
+      gap:10px;
+      overflow:auto;
+      padding-bottom:4px;
+      margin-bottom:14px;
+    }
+    .items-tabs::-webkit-scrollbar{display:none}
+
+    .item-tab{
+      min-width:140px;
+      background:#fff;
+      border:2px solid #e8edf2;
+      border-radius:20px;
+      padding:10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      cursor:pointer;
+      transition:.22s ease;
+      text-align:right;
+      flex:0 0 auto;
+    }
+    .item-tab.active{
+      border-color:var(--primary);
+      background:#f0f8f9;
+      box-shadow:0 10px 22px rgba(20,69,77,.08);
+    }
+    .item-tab img{
+      width:46px;
+      height:46px;
+      border-radius:14px;
+      object-fit:cover;
+      border:1px solid #e5e7eb;
+      background:#fff;
+    }
+
+    .slider-shell{
+      position:relative;background:#fff;border:1px solid var(--line);border-radius:28px;overflow:hidden;
+      min-height:320px;
+    }
+
+    .slider-track{
+      display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;height:100%;
+    }
+    .slider-track::-webkit-scrollbar{display:none}
+
+    .slide-item{
+      min-width:100%;scroll-snap-align:start;position:relative;background:#f4f6f8;aspect-ratio:1/1;
+      overflow:hidden;
+    }
+
+    .slide-item img{
+      width:100%;height:100%;object-fit:cover;display:block;
+      opacity:0;transition:opacity .35s ease, transform .35s ease;
+    }
+    .slide-item img.loaded{
+      opacity:1;
+    }
+
+    .slide-loader{
+      position:absolute;inset:0;
+      background:linear-gradient(90deg,#f1f5f9 25%,#e5e7eb 37%,#f1f5f9 63%);
+      background-size:400% 100%;
+      animation:shimmer 1.2s infinite linear;
+      z-index:1;
+    }
+
+    @keyframes shimmer{
+      0%{background-position:100% 0}
+      100%{background-position:-100% 0}
+    }
+
+    .slider-btn{
+      position:absolute;top:50%;transform:translateY(-50%);
+      width:38px;height:38px;border:none;border-radius:999px;background:rgba(17,24,39,.82);
+      color:#fff;display:flex;align-items:center;justify-content:center;z-index:5;cursor:pointer;
+    }
+    .slider-btn.prev{right:12px}
+    .slider-btn.next{left:12px}
+
+    .slider-dots{display:flex;justify-content:center;gap:6px;padding:12px}
+    .slider-dot{
+      width:8px;height:8px;border-radius:999px;background:#cbd5e1;border:none;transition:.2s;cursor:pointer;
+    }
+    .slider-dot.active{width:22px;background:var(--primary)}
+
+    .discount-chip{
+      position:absolute;top:14px;right:14px;background:var(--accent);color:#fff;
+      min-width:58px;height:30px;padding:0 12px;border-radius:999px;font-size:11px;
+      display:flex;align-items:center;justify-content:center;font-weight:900;z-index:4;
+      box-shadow:0 8px 18px rgba(243,112,33,.26);
+    }
+
+    .logo-watermark{
+      position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      pointer-events:none;z-index:2;
+    }
+    .logo-watermark img{
+      width:92px;height:92px;object-fit:contain;opacity:.12;filter:drop-shadow(0 10px 24px rgba(0,0,0,.16));
+    }
+
+    .color-row, .size-row{
+      display:flex;flex-wrap:wrap;gap:10px;
+    }
+
+    .color-btn, .size-btn{
+      display:flex;flex-direction:column;align-items:center;gap:4px;border:none;background:transparent;cursor:pointer;
+    }
+
+    .color-chip{
+      width:34px;height:34px;border-radius:999px;border:2px solid #d1d5db;
+      transition:.22s ease;box-shadow:0 3px 10px rgba(0,0,0,.05);
+    }
+    .color-chip.active{
+      transform:scale(1.08);
+      border-color:#111827;
+      box-shadow:0 0 0 4px rgba(17,24,39,.08);
+    }
+
+    .color-name{
+      font-size:11px;font-weight:800;color:#64748b;max-width:56px;text-align:center;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+
+    .size-pill{
+      min-width:54px;
+      height:40px;
+      padding:0 16px;
+      border-radius:999px;
+      border:2px solid #d1d5db;
+      background:#fff;
+      color:#334155;
+      font-weight:900;
+      font-size:13px;
+      transition:.22s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .size-pill.active{
+      background:var(--primary);
+      color:#fff;
+      border-color:var(--primary);
+      box-shadow:0 10px 22px rgba(20,69,77,.16);
+    }
+
+    .field-preview{
+      background:#f8fafc;border:1px solid #eef2f6;border-radius:18px;padding:11px 12px;
+    }
+    .field-preview .k{font-size:11px;color:#94a3b8;font-weight:900;margin-bottom:3px}
+    .field-preview .v{font-size:13px;color:#111827;font-weight:900;word-break:break-word}
+
+    .pay-method-grid{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+    }
+    @media (max-width:520px){
+      .pay-method-grid{grid-template-columns:1fr}
+    }
+
+    .pay-method{
+      border:2px solid #edf0f3;background:#fff;border-radius:22px;padding:14px;
+      cursor:pointer;transition:.2s ease;
+    }
+    .pay-method.selected{
+      border-color:var(--primary);background:#f0f8f9;
+      box-shadow:0 10px 22px rgba(20,69,77,.08);
+    }
+    .pay-method img{
+      width:46px;height:46px;object-fit:cover;border-radius:999px;border:1px solid #e5e7eb;background:#fff;
+    }
+
+    .copy-box{
+      background:#fff;border:1.5px solid #111827;border-radius:18px;padding:14px;position:relative;
+    }
+    .copy-box-title{
+      position:absolute;top:-10px;right:14px;background:#fff;padding:0 8px;font-size:11px;font-weight:900;color:#111827;
+    }
+    .copy-box-value{
+      padding-top:4px;font-size:14px;font-weight:900;word-break:break-all;
+    }
+
+    .summary-row{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;
+    }
+    .summary-row .k{color:#64748b;font-weight:800}
+    .summary-row .v{color:#111827;font-weight:900}
+
+    .summary-total{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+      padding-top:16px;border-top:1px solid #eef2f6;margin-top:16px;
+    }
+    .summary-total .k{font-size:20px;font-weight:900}
+    .summary-total .v{font-size:28px;font-weight:900;color:var(--primary)}
+
+    .status-box{
+      background:#f8fafc;border:1px solid #e8edf2;border-radius:22px;padding:14px;
+    }
+
+    .bottom-bar{
+      position:fixed;bottom:0;left:0;right:0;z-index:60;background:#fff;
+      border-top:1px solid #e5e7eb;box-shadow:0 -10px 30px rgba(0,0,0,.06);
+      padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    }
+
+    .toast{
+      position:fixed;bottom:92px;left:50%;transform:translateX(-50%);
+      background:#111827;color:#fff;border-radius:999px;padding:12px 18px;z-index:9999;
+      font-size:13px;font-weight:900;box-shadow:0 12px 32px rgba(0,0,0,.16);
+      max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+
+    .hidden-view{display:none !important}
+    .soft-divider{height:1px;background:#eef2f6;margin:18px 0}
+    .danger-ring{box-shadow:0 0 0 3px rgba(220,38,38,.12)!important;border-color:#ef4444!important}
+
+    .select-wrap{
+      position:relative;
+    }
+    .select-arrow{
+      position:absolute;
+      left:14px;
+      top:50%;
+      transform:translateY(-50%);
+      pointer-events:none;
+      color:#64748b;
+      z-index:2;
+    }
+    html[dir="ltr"] .select-arrow{
+      left:auto;
+      right:14px;
+    }
+
+    .select{
+      appearance:none;
+      padding-left:40px;
+    }
+    html[dir="ltr"] .select{
+      padding-left:14px;
+      padding-right:40px;
+    }
+
+    .pay-amount-box{
+      background:#f8fafc;
+      border:1px solid #e8edf2;
+      border-radius:18px;
+      padding:14px;
+      margin-top:14px;
+    }
+
+    .pay-amount-box .label{
+      color:#64748b;
+      font-size:12px;
+      font-weight:900;
+      margin-bottom:5px;
+    }
+
+    .pay-amount-box .amount{
+      color:var(--primary);
+      font-size:28px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
+    .fade-switch{
+      animation:fadeSwitch .28s ease;
+    }
+    @keyframes fadeSwitch{
+      from{opacity:.35;transform:scale(.985)}
+      to{opacity:1;transform:scale(1)}
+    }
+
+    @media (max-width:640px){
+      .page-wrap{padding-left:12px;padding-right:12px}
+      .section-title{font-size:20px}
+      .summary-total .v{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="topLoading" class="top-loading"></div>
+
+  <div id="overlayLoading" class="overlay-loading">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <div class="font-black text-[var(--primary)] text-sm">جاري المعالجة...</div>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="header-bar">
+      <div class="flex items-center justify-between gap-3">
+        <button class="icon-circle" onclick="goBackAction()">
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+
+        <div class="text-center">
+          <div class="section-title">الدفع</div>
+          <div class="subtle">Checkout</div>
+        </div>
+
+        <div class="icon-circle">
+          <svg class="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-4 mb-4">
+      <div class="stepper">
+        <div class="step-node current" id="stepNode1">1</div>
+        <div class="step-label current" id="stepLabel1">المنتجات</div>
+        <div class="step-line" id="stepLine1"></div>
+        <div class="step-node idle" id="stepNode2">2</div>
+        <div class="step-label idle" id="stepLabel2">البيانات</div>
+        <div class="step-line" id="stepLine2"></div>
+        <div class="step-node idle" id="stepNode3">3</div>
+        <div class="step-label idle" id="stepLabel3">الدفع</div>
+        <div class="step-line" id="stepLine3"></div>
+        <div class="step-node idle" id="stepNode4">4</div>
+        <div class="step-label idle" id="stepLabel4">التأكيد</div>
+      </div>
+    </div>
+
+    <section id="viewProduct" class="view-panel">
+      <div class="card p-4 mb-4">
+        <div class="field-label">المنتجات المختارة</div>
+        <div id="itemTabsWrap" class="items-tabs"></div>
+      </div>
+
+      <div class="product-view">
+        <div class="card p-3">
+          <div class="slider-shell">
+            <div id="discountBadge" class="discount-chip hidden-view">0% -</div>
+
+            <button class="slider-btn prev" id="sliderPrevBtn" onclick="moveSlider(-1)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button class="slider-btn next" id="sliderNextBtn" onclick="moveSlider(1)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+
+            <div class="slider-track" id="productSliderTrack" onscroll="syncSliderDots()"></div>
+
+            <div class="logo-watermark">
+              <img id="watermarkLogo" src="" alt="logo">
+            </div>
+          </div>
+
+          <div class="slider-dots" id="productSliderDots"></div>
+
+          <div id="colorsWrap" class="mt-2 hidden-view">
+            <div class="field-label">الألوان المتاحة</div>
+            <div class="color-row" id="colorsRow"></div>
+          </div>
+
+          <div id="sizesWrap" class="mt-5 hidden-view">
+            <div class="field-label">اختر المقاس</div>
+            <div class="size-row" id="sizesRow"></div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="card p-5">
+            <div class="subtle mb-1">المنتج الحالي</div>
+            <h1 id="productName" class="text-2xl font-black text-[var(--primary)] leading-9">-</h1>
+
+            <div class="mt-3 flex items-center gap-3 flex-wrap">
+              <div id="productOldPrice" class="text-gray-400 line-through text-lg font-black hidden-view">0 ₪</div>
+              <div id="productPrice" class="text-[30px] font-black text-[var(--primary)]">0 ₪</div>
+            </div>
+
+            <div id="productShortDesc" class="mt-3 text-sm text-gray-500 font-bold leading-7 hidden-view"></div>
+          </div>
+
+          <div class="card p-5">
+            <div class="field-label">ملخص سريع للمنتجات</div>
+            <div id="selectedItemsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="viewDetails" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1">بيانات الطلب</div>
+        <div class="subtle mb-4">هذه البيانات تُدخل مرة واحدة لأنها لنفس العميل</div>
+
+        <div id="globalFieldsWrap" class="space-y-4"></div>
+
+        <div id="shippingWrap" class="mt-5 hidden-view">
+          <div class="soft-divider"></div>
+          <div class="field-label">منطقة التوصيل</div>
+          <div class="select-wrap">
+            <select id="shippingZoneSelect" class="select" onchange="handleShippingChange()"></select>
+            <span class="select-arrow">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            </span>
+          </div>
+          <div class="subtle mt-2">سيتم إضافة رسوم التوصيل تلقائيًا إلى الفاتورة.</div>
+        </div>
+
+        <div id="authOptionalWrap" class="mt-5">
+          <div class="soft-divider"></div>
+          <div class="field-label">تسجيل الدخول</div>
+          <div class="status-box">
+            <div class="text-sm font-black text-gray-800 mb-1">تسجيل الدخول اختياري</div>
+            <div class="text-xs text-gray-500 font-bold leading-6">يمكنك إكمال الطلب بدون تسجيل دخول، وفي النهاية ستحصل على كود متابعة الطلب.</div>
+
+            <div id="signedInBox" class="hidden-view mt-4">
+              <div class="field-preview">
+                <div class="k">المستخدم الحالي</div>
+                <div class="v" id="signedInText">-</div>
+              </div>
+              <button class="secondary-btn mt-3 w-full" onclick="logoutUser()">تسجيل الخروج</button>
+            </div>
+
+            <div id="guestBox" class="mt-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button class="ghost-btn w-full" onclick="goLoginPage()">تسجيل الدخول</button>
+                <button class="secondary-btn w-full" onclick="continueWithoutLogin()">إكمال بدون تسجيل دخول</button>
+              </div>
+
+              <div id="guestQuickFields" class="mt-4 hidden-view">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label class="field-label">الاسم</label>
+                    <input id="guestName" class="field" placeholder="اكتب الاسم">
+                  </div>
+                  <div>
+                    <label class="field-label">رقم الجوال</label>
+                    <input id="guestPhone" class="field" placeholder="اكتب رقم الجوال">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="viewPayment" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1">طريقة الدفع</div>
+        <div class="subtle mb-4">اختر الطريقة المناسبة لك</div>
+
+        <div id="paymentMethodsGrid" class="pay-method-grid"></div>
+        <div id="paymentMethodsEmpty" class="hidden-view status-box mt-3">لا توجد طرق دفع متاحة</div>
+      </div>
+
+      <div id="selectedMethodCard" class="card p-5 mb-4 hidden-view">
+        <div class="flex items-center gap-3 mb-5">
+          <img id="selectedMethodImage" src="" class="w-12 h-12 rounded-full border object-cover bg-white" alt="">
+          <div>
+            <div id="selectedMethodName" class="text-xl font-black text-[var(--primary)]">-</div>
+            <div class="subtle">تفاصيل الطريقة المختارة</div>
+          </div>
+        </div>
+
+        <div id="paymentMethodCopyFieldsWrap" class="space-y-4"></div>
+        <div id="paymentMethodExtraImagesWrap" class="space-y-4 mt-4"></div>
+
+        <div class="pay-amount-box">
+          <div class="label">المبلغ الذي ستدفعه</div>
+          <div class="amount" id="methodPayAmount">0 ₪</div>
+        </div>
+
+        <div id="payerFieldsSection" class="mt-5 hidden-view">
+          <div class="soft-divider"></div>
+          <div class="field-label">البيانات المطلوبة لهذه الطريقة</div>
+          <div id="payerFieldsWrap" class="space-y-4"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="viewConfirm" class="view-panel hidden-view">
+      <div class="card p-5 mb-4">
+        <div class="section-title !text-[20px] mb-1">ملخص الطلب</div>
+        <div class="subtle mb-4">راجع كل التفاصيل قبل الإرسال</div>
+
+        <div id="summaryItems" class="space-y-3 mb-4"></div>
+
+        <div class="soft-divider"></div>
+
+        <div class="space-y-3">
+          <div class="summary-row"><span class="k">المبلغ الفرعي</span><span class="v" id="summarySubtotal">0 ₪</span></div>
+          <div class="summary-row"><span class="k">رسوم التوصيل</span><span class="v" id="summaryShipping">0 ₪</span></div>
+          <div class="summary-row"><span class="k">طريقة الدفع</span><span class="v" id="summaryMethod">-</span></div>
+          <div class="summary-row"><span class="k">منطقة التوصيل</span><span class="v" id="summaryZone">-</span></div>
+          <div class="summary-row"><span class="k">الحساب</span><span class="v" id="summaryAccountState">-</span></div>
+        </div>
+
+        <div class="summary-total">
+          <div class="k">الإجمالي</div>
+          <div class="v" id="summaryTotal">0 ₪</div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="field-label">البيانات المدخلة</div>
+        <div id="summaryFieldsPreview" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <section id="viewDone" class="view-panel hidden-view">
+      <div class="card p-6 text-center">
+        <div class="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+
+        <div class="section-title !text-[22px] mb-2">تم إرسال الطلب بنجاح</div>
+        <div class="text-sm text-gray-500 font-bold leading-7 mb-5">احتفظ بكود المتابعة التالي لمراقبة حالة طلبك من صفحة الطلبات.</div>
+
+        <div class="copy-box mx-auto max-w-[360px] mb-4">
+          <div class="copy-box-title">كود المتابعة</div>
+          <div id="doneTrackingCode" class="copy-box-value text-[24px] text-[var(--primary)] text-center tracking-wider">-</div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[480px] mx-auto">
+          <button class="primary-btn" onclick="goOrdersPage()">فتح صفحة الطلبات</button>
+          <button class="secondary-btn" onclick="goHome()">العودة للمتجر</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="bottom-bar" id="bottomBar">
+    <button id="bottomPrimaryBtn" class="primary-btn w-full" onclick="handleBottomAction()">التالي</button>
+  </div>
+
+  <script>
+    firebase.initializeApp(firebaseConfig1885);
+    const rtdb = firebase.database();
+    const auth = firebase.auth();
+
+    const PATHS = {
+      store: FIREBASE_PATHS_1885.settingsStore,
+      products: FIREBASE_PATHS_1885.products,
+      paymentMethods: FIREBASE_PATHS_1885.settingsPaymentMethods,
+      orders: FIREBASE_PATHS_1885.orders,
+      shippingZones: "settings1885/shippingZones1885",
+      globalCheckoutFields: "settings1885/globalCheckoutFields1885",
+      users: "users1885"
+    };
+
+    const LOCAL_KEYS = {
+      checkoutSelection: "tofan_checkout_selection_1885"
+    };
+
+    const COD_METHOD = {
+      id: "fixed_cod_method",
+      name: "الدفع عند الاستلام",
+      image: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
+      copyFields: [
+        { label: "نوع الدفع", value: "الدفع عند الاستلام عند وصول الطلب" }
+      ],
+      extraImages: [],
+      payerFields: [],
+      isCod: true,
+      enabled: true,
+      fixed: true
+    };
+
+    let storeSettings = {};
+    let productsMap = {};
+    let paymentMethods = [];
+    let shippingZones = [];
+    let globalFields = [];
+    let currentUser = null;
+    let currentUserProfile = null;
+    let checkoutSelection = { source:"buy_now", items:[] };
+    let currentView = 1;
+    let selectedMethod = null;
+    let selectedShippingZone = null;
+    let withoutLoginMode = false;
+    let currentSliderImages = [];
+    let activeItemIndex = 0;
+
+    function setLoadingBar(on){
+      const el = document.getElementById("topLoading");
+      if(on){
+        el.style.width = "65%";
+      }else{
+        el.style.width = "100%";
+        setTimeout(() => el.style.width = "0%", 260);
+      }
+    }
+
+    function setOverlayLoading(on){
+      document.getElementById("overlayLoading").style.display = on ? "flex" : "none";
+    }
+
+    function showToast(msg){
+      const old = document.querySelector(".toast");
+      if(old) old.remove();
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateX(-50%) translateY(16px)";
+        setTimeout(() => el.remove(), 220);
+      }, 2200);
+    }
+
+    function money(v){
+      return `${Number(v || 0).toFixed(2)} ₪`;
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function randomCode(len = 10){
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for(let i=0;i<len;i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+
+    function getDiscountPercent(price, oldPrice){
+      const p = Number(price || 0);
+      const o = Number(oldPrice || 0);
+      if(!(o > p && p > 0)) return 0;
+      return Math.round(((o - p) / o) * 100);
+    }
+
+    function setStep(step){
+      const nodes = [
+        document.getElementById("stepNode1"),
+        document.getElementById("stepNode2"),
+        document.getElementById("stepNode3"),
+        document.getElementById("stepNode4")
+      ];
+      const lines = [
+        document.getElementById("stepLine1"),
+        document.getElementById("stepLine2"),
+        document.getElementById("stepLine3")
+      ];
+      const labels = [
+        document.getElementById("stepLabel1"),
+        document.getElementById("stepLabel2"),
+        document.getElementById("stepLabel3"),
+        document.getElementById("stepLabel4")
+      ];
+
+      nodes.forEach(n => n.className = "step-node idle");
+      lines.forEach(l => l.className = "step-line");
+      labels.forEach(l => l.className = "step-label idle");
+
+      for(let i=0;i<step;i++){
+        if(i < step - 1){
+          nodes[i].className = "step-node done";
+          labels[i].className = "step-label done";
+          if(lines[i]) lines[i].className = "step-line done";
+        }else{
+          nodes[i].className = "step-node current";
+          labels[i].className = "step-label current";
+        }
+      }
+    }
+
+    function showView(step){
+      currentView = step;
+      ["viewProduct","viewDetails","viewPayment","viewConfirm","viewDone"].forEach((id, idx) => {
+        document.getElementById(id).classList.toggle("hidden-view", idx !== step - 1);
+      });
+      document.getElementById("bottomBar").classList.toggle("hidden-view", step === 5);
+      setStep(step);
+      updateBottomButton();
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    function updateBottomButton(){
+      const btn = document.getElementById("bottomPrimaryBtn");
+      if(currentView === 1) btn.textContent = "التالي";
+      if(currentView === 2) btn.textContent = "متابعة إلى الدفع";
+      if(currentView === 3) btn.textContent = "مراجعة الطلب";
+      if(currentView === 4) btn.textContent = "إرسال الطلب";
+    }
+
+    function handleBottomAction(){
+      if(currentView === 1){
+        if(!validateProductStep()) return;
+        showView(2);
+        return;
+      }
+      if(currentView === 2){
+        if(!validateDetailsStep()) return;
+        showView(3);
+        return;
+      }
+      if(currentView === 3){
+        if(!validatePaymentStep()) return;
+        buildSummary();
+        showView(4);
+        return;
+      }
+      if(currentView === 4){
+        submitOrder();
+      }
+    }
+
+    function goBackAction(){
+      if(currentView === 1){
+        goHome();
+        return;
+      }
+      if(currentView === 2) return showView(1);
+      if(currentView === 3) return showView(2);
+      if(currentView === 4) return showView(3);
+      if(currentView === 5) return goHome();
+    }
+
+    function goHome(){
+      window.location.href = "index.html";
+    }
+
+    function goOrdersPage(){
+      window.location.href = "order.html";
+    }
+
+    function goLoginPage(){
+      sessionStorage.setItem("login_redirect_1885", "pay.html");
+      window.location.href = "login.html";
+    }
+
+    async function logoutUser(){
+      try{
+        await auth.signOut();
+        currentUser = null;
+        currentUserProfile = null;
+        renderAuthState();
+        showToast("تم تسجيل الخروج");
+      }catch(e){
+        showToast("تعذر تسجيل الخروج");
+      }
+    }
+
+    function continueWithoutLogin(){
+      withoutLoginMode = true;
+      document.getElementById("guestQuickFields").classList.remove("hidden-view");
+      showToast("يمكنك الآن الإكمال بدون تسجيل دخول");
+    }
+
+    function normalizeProducts(raw){
+      const map = {};
+      Object.entries(raw || {}).forEach(([id, v]) => {
+        map[id] = {
+          id,
+          categoryId: v.categoryId || v.category || "",
+          nameAr: v.nameAr || v.name || "",
+          nameEn: v.nameEn || "",
+          descAr: v.descAr || v.desc || "",
+          descEn: v.descEn || "",
+          price: Number(v.price || 0),
+          oldPrice: Number(v.oldPrice || 0),
+          image1: v.image1 || v.image || v.front || "",
+          image2: v.image2 || v.image || v.back || "",
+          images: Array.isArray(v.images) ? v.images : [],
+          colorOptions: Array.isArray(v.colorOptions) ? v.colorOptions : [],
+          sizes: Array.isArray(v.sizes) ? v.sizes : [],
+          shippingFee: Number(v.shippingFee || 0),
+          freeShipping: v.freeShipping === true,
+          enableShipping: v.enableShipping === true,
+          enableCod: v.enableCod !== false,
+          enabled: v.enabled !== false
+        };
+      });
+      return map;
+    }
+
+    function normalizePaymentMethods(raw){
+      const methods = Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        name: v.name || "",
+        image: v.image || "",
+        copyFields: Array.isArray(v.copyFields) ? v.copyFields : [],
+        extraImages: Array.isArray(v.extraImages) ? v.extraImages : [],
+        payerFields: Array.isArray(v.payerFields) ? v.payerFields : [],
+        isCod: v.isCod === true,
+        enabled: v.enabled !== false
+      })).filter(x => x.enabled && !x.isCod);
+
+      return [COD_METHOD, ...methods];
+    }
+
+    function normalizeShippingZones(raw){
+      return Object.entries(raw || {}).map(([id, v]) => ({
+        id,
+        name: v.name || "",
+        price: Number(v.price || 0),
+        order: Number(v.order || 0),
+        enabled: v.enabled !== false
+      })).filter(x => x.enabled).sort((a,b) => a.order - b.order);
+    }
+
+    function normalizeGlobalFields(raw){
+      return Array.isArray(raw) ? raw.filter(x => x && x.type === "field") : [];
+    }
+
+    function getCheckoutItems(){
+      const raw = sessionStorage.getItem(LOCAL_KEYS.checkoutSelection);
+      if(!raw) return { source:"buy_now", items:[] };
+      try{
+        return JSON.parse(raw);
+      }catch{
+        return { source:"buy_now", items:[] };
+      }
+    }
+
+    function enrichCheckoutItems(items){
+      return (items || []).map((item, index) => {
+        const db = productsMap[item.id] || {};
+        return {
+          id: item.id,
+          nameAr: item.nameAr || db.nameAr || "",
+          nameEn: item.nameEn || db.nameEn || "",
+          price: Number(item.price ?? db.price ?? 0),
+          qty: Number(item.qty || 1),
+          image1: item.image1 || db.image1 || "",
+          image2: item.image2 || db.image2 || "",
+          oldPrice: Number(db.oldPrice || 0),
+          descAr: db.descAr || "",
+          descEn: db.descEn || "",
+          images: Array.isArray(db.images) ? db.images : [],
+          colorOptions: Array.isArray(db.colorOptions) ? db.colorOptions : [],
+          sizes: Array.isArray(db.sizes) ? db.sizes : [],
+          shippingFee: Number(db.shippingFee || 0),
+          freeShipping: db.freeShipping === true,
+          enableShipping: db.enableShipping === true,
+          enableCod: db.enableCod !== false,
+          selectedColorIndex: 0,
+          selectedColorName: "",
+          selectedColorCode: "",
+          selectedSize: "",
+          _index: index
+        };
+      });
+    }
+
+    function getActiveItem(){
+      return checkoutSelection.items[activeItemIndex] || null;
+    }
+
+    function ensureItemSelections(item){
+      if(!item) return;
+      const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      const sizes = normalizeSizesForDisplay(item);
+
+      if(colors.length){
+        if(typeof item.selectedColorIndex !== "number" || !colors[item.selectedColorIndex]){
+          item.selectedColorIndex = 0;
+        }
+        const color = colors[item.selectedColorIndex];
+        item.selectedColorName = color?.name || "";
+        item.selectedColorCode = color?.code || "";
+      } else {
+        item.selectedColorIndex = 0;
+        item.selectedColorName = "";
+        item.selectedColorCode = "";
+      }
+
+      if(sizes.length){
+        if(!item.selectedSize || !sizes.includes(item.selectedSize)){
+          item.selectedSize = sizes[0];
+        }
+      } else {
+        item.selectedSize = "";
+      }
+    }
+
+    function renderItemTabs(){
+      const wrap = document.getElementById("itemTabsWrap");
+      const items = checkoutSelection.items || [];
+      if(!items.length){
+        wrap.innerHTML = "";
+        return;
+      }
+
+      wrap.innerHTML = items.map((item, idx) => `
+        <button type="button" class="item-tab ${idx===activeItemIndex?'active':''}" onclick="switchActiveItem(${idx})">
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/100x100?text=Item')}" alt="">
+          <div class="flex-1 min-w-0 text-right">
+            <div class="text-xs font-black text-gray-800 line-clamp-2">${escapeHtml(item.nameAr || item.nameEn || 'منتج')}</div>
+            <div class="text-[11px] text-gray-400 font-black mt-1">العدد: ${item.qty}</div>
+          </div>
+        </button>
+      `).join("");
+    }
+
+    function switchActiveItem(index){
+      activeItemIndex = index;
+      renderItemTabs();
+      renderProductPreview();
+      renderSelectedItems();
+    }
+
+    function renderSelectedItems(){
+      const box = document.getElementById("selectedItemsList");
+      const items = checkoutSelection.items || [];
+      if(!items.length){
+        box.innerHTML = `<div class="status-box">لا توجد منتجات محددة</div>`;
+        return;
+      }
+
+      box.innerHTML = items.map((item, idx) => `
+        <button type="button" onclick="switchActiveItem(${idx})" class="w-full text-right flex items-center gap-3 border ${idx===activeItemIndex?'border-[#14454d] bg-[#f0f8f9]':'border-[#eef2f6] bg-white'} rounded-2xl p-3 transition">
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/120x140?text=Item')}" class="w-16 h-16 rounded-2xl object-cover border" alt="">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-black text-gray-800 line-clamp-2">${escapeHtml(item.nameAr || item.nameEn || 'منتج')}</div>
+            <div class="text-xs text-gray-400 font-bold mt-1">العدد: ${item.qty}</div>
+            <div class="text-xs text-gray-500 font-black mt-1">
+              ${item.selectedColorName ? `اللون: ${escapeHtml(item.selectedColorName)} | ` : ''}
+              ${item.selectedSize ? `المقاس: ${escapeHtml(item.selectedSize)}` : ''}
+            </div>
+          </div>
+          <div class="text-sm font-black text-[var(--primary)]">${money(Number(item.price || 0) * Number(item.qty || 1))}</div>
+        </button>
+      `).join("");
+    }
+
+    function buildSliderImagesForItem(item){
+      const all = [];
+      const colorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+
+      if(colorOptions.length){
+        const selectedColor = colorOptions[item.selectedColorIndex] || colorOptions[0];
+        (selectedColor?.images || []).forEach(img => {
+          if(img && !all.includes(img)) all.push(img);
+        });
+      }
+
+      [item.image1, item.image2, ...(item.images || [])].forEach(img => {
+        if(img && !all.includes(img)) all.push(img);
+      });
+
+      return all.length ? all : ["https://via.placeholder.com/800x800?text=Image"];
+    }
+
+    function renderProductPreview(){
+      const item = getActiveItem();
+      if(!item) return;
+
+      ensureItemSelections(item);
+
+      document.getElementById("productName").textContent = item.nameAr || item.nameEn || "منتج";
+      document.getElementById("productPrice").textContent = money(item.price);
+
+      const descBox = document.getElementById("productShortDesc");
+      const desc = item.descAr || item.descEn || "";
+      descBox.textContent = desc;
+      descBox.classList.toggle("hidden-view", !desc);
+
+      const oldPriceEl = document.getElementById("productOldPrice");
+      if(item.oldPrice > item.price){
+        oldPriceEl.textContent = money(item.oldPrice);
+        oldPriceEl.classList.remove("hidden-view");
+      }else{
+        oldPriceEl.classList.add("hidden-view");
+      }
+
+      const dis = getDiscountPercent(item.price, item.oldPrice);
+      const badge = document.getElementById("discountBadge");
+      if(dis > 0){
+        badge.textContent = `${dis}% -`;
+        badge.classList.remove("hidden-view");
+      }else{
+        badge.classList.add("hidden-view");
+      }
+
+      document.getElementById("watermarkLogo").src = storeSettings.storeLogoUrl || "";
+
+      currentSliderImages = buildSliderImagesForItem(item);
+      renderSlider(currentSliderImages);
+      renderColors(item);
+      renderSizes(item);
+    }
+
+    function createSlide(img){
+      return `
+        <div class="slide-item fade-switch">
+          <div class="slide-loader"></div>
+          <img src="${escapeHtml(img)}" alt="product image" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+               onload="this.classList.add('loaded'); const l=this.previousElementSibling; if(l) l.style.display='none';"
+               onerror="this.classList.add('loaded'); const l=this.previousElementSibling; if(l) l.style.display='none';">
+        </div>
+      `;
+    }
+
+    function renderSlider(images){
+      const track = document.getElementById("productSliderTrack");
+      const dots = document.getElementById("productSliderDots");
+      track.innerHTML = images.map(img => createSlide(img)).join("");
+      dots.innerHTML = images.map((_, i) => `<button class="slider-dot ${i===0?'active':''}" onclick="goToSlide(${i})"></button>`).join("");
+
+      const hasMany = images.length > 1;
+      document.getElementById("sliderPrevBtn").style.display = hasMany ? "flex" : "none";
+      document.getElementById("sliderNextBtn").style.display = hasMany ? "flex" : "none";
+      track.scrollTo({ left: 0, behavior: "auto" });
+    }
+
+    function moveSlider(dir){
+      const track = document.getElementById("productSliderTrack");
+      track.scrollBy({ left: track.clientWidth * dir, behavior:"smooth" });
+      setTimeout(syncSliderDots, 220);
+    }
+
+    function goToSlide(index){
+      const track = document.getElementById("productSliderTrack");
+      track.scrollTo({ left: track.clientWidth * index, behavior:"smooth" });
+      setTimeout(syncSliderDots, 220);
+    }
+
+    function syncSliderDots(){
+      const track = document.getElementById("productSliderTrack");
+      const dots = [...document.querySelectorAll(".slider-dot")];
+      const idx = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+      dots.forEach((dot, i) => dot.classList.toggle("active", i === idx));
+    }
+
+    function renderColors(item){
+      const wrap = document.getElementById("colorsWrap");
+      const row = document.getElementById("colorsRow");
+      const colorOptions = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+
+      if(!colorOptions.length){
+        wrap.classList.add("hidden-view");
+        row.innerHTML = "";
+        return;
+      }
+
+      wrap.classList.remove("hidden-view");
+      row.innerHTML = colorOptions.map((color, idx) => `
+        <button type="button" onclick="selectColor(${idx})" class="color-btn">
+          <span class="color-chip ${idx===item.selectedColorIndex?'active':''}" style="background:${escapeHtml(color.code || '#ccc')}"></span>
+          <span class="color-name">${escapeHtml(color.name || 'لون')}</span>
+        </button>
+      `).join("");
+    }
+
+    function selectColor(index){
+      const item = getActiveItem();
+      if(!item) return;
+      const colors = Array.isArray(item.colorOptions) ? item.colorOptions : [];
+      const selected = colors[index];
+      if(!selected) return;
+
+      item.selectedColorIndex = index;
+      item.selectedColorName = selected.name || "";
+      item.selectedColorCode = selected.code || "";
+
+      const imgs = (selected.images || []).filter(Boolean);
+      if(imgs.length){
+        currentSliderImages = imgs;
+        renderSlider(currentSliderImages);
+      }else{
+        currentSliderImages = buildSliderImagesForItem(item);
+        renderSlider(currentSliderImages);
+      }
+
+      renderColors(item);
+      renderSelectedItems();
+    }
+
+    function normalizeSizesForDisplay(item){
+      const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+      return sizes.map(s => String(s || "").trim()).filter(Boolean);
+    }
+
+    function renderSizes(item){
+      const wrap = document.getElementById("sizesWrap");
+      const row = document.getElementById("sizesRow");
+      const sizes = normalizeSizesForDisplay(item);
+
+      if(!sizes.length){
+        wrap.classList.add("hidden-view");
+        row.innerHTML = "";
+        item.selectedSize = "";
+        return;
+      }
+
+      ensureItemSelections(item);
+      wrap.classList.remove("hidden-view");
+
+      row.innerHTML = sizes.map(size => `
+        <button type="button" onclick="selectSize('${escapeHtml(size)}')" class="size-btn">
+          <span class="size-pill ${item.selectedSize === size ? 'active' : ''}">${escapeHtml(size)}</span>
+        </button>
+      `).join("");
+    }
+
+    function selectSize(size){
+      const item = getActiveItem();
+      if(!item) return;
+      item.selectedSize = size;
+      renderSizes(item);
+      renderSelectedItems();
+    }
+
+    function validateProductStep(){
+      const items = checkoutSelection.items || [];
+      if(!items.length) {
+        showToast("لا يوجد منتج محدد");
+        return false;
+      }
+
+      for(const item of items){
+        ensureItemSelections(item);
+        const sizes = normalizeSizesForDisplay(item);
+        if(sizes.length && !item.selectedSize){
+          showToast(`اختر المقاس للمنتج: ${item.nameAr || item.nameEn || 'منتج'}`);
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function renderGlobalFields(){
+      const wrap = document.getElementById("globalFieldsWrap");
+      if(!globalFields.length){
+        wrap.innerHTML = `<div class="status-box">لا توجد حقول إضافية مطلوبة.</div>`;
+        return;
+      }
+
+      wrap.innerHTML = globalFields.map((field, idx) => `
+        <div>
+          <label class="field-label">${escapeHtml(field.label || 'حقل')}${field.required ? ' <span style="color:#ef4444">*</span>' : ''}</label>
+          <input
+            id="globalField_${idx}"
+            class="field"
+            type="${field.inputType === 'number' ? 'number' : 'text'}"
+            placeholder="${escapeHtml(field.placeholder || '')}"
+            data-key="${escapeHtml(field.key || '')}"
+            data-label="${escapeHtml(field.label || '')}"
+            data-required="${field.required ? 'true' : 'false'}"
+          >
+        </div>
+      `).join("");
+    }
+
+    function renderShippingSection(){
+      const needsShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      const wrap = document.getElementById("shippingWrap");
+      const select = document.getElementById("shippingZoneSelect");
+
+      if(!needsShipping || !shippingZones.length){
+        wrap.classList.add("hidden-view");
+        selectedShippingZone = null;
+        return;
+      }
+
+      wrap.classList.remove("hidden-view");
+      select.innerHTML = `
+        <option value="">اختر منطقة التوصيل</option>
+        ${shippingZones.map(z => `<option value="${z.id}">${escapeHtml(z.name)} - ${money(z.price)}</option>`).join("")}
+      `;
+    }
+
+    function handleShippingChange(){
+      const val = document.getElementById("shippingZoneSelect").value;
+      selectedShippingZone = shippingZones.find(z => z.id === val) || null;
+      updateMethodPayAmount();
+    }
+
+    function renderAuthState(){
+      const signedIn = !!currentUser;
+      document.getElementById("signedInBox").classList.toggle("hidden-view", !signedIn);
+      document.getElementById("guestBox").classList.toggle("hidden-view", signedIn);
+
+      if(signedIn){
+        const name = currentUserProfile?.displayName || currentUser.displayName || currentUser.email || "مستخدم";
+        document.getElementById("signedInText").textContent = name;
+      }
+    }
+
+    function renderPaymentMethods(){
+      const grid = document.getElementById("paymentMethodsGrid");
+      const empty = document.getElementById("paymentMethodsEmpty");
+
+      let methods = [...paymentMethods];
+      const allowCodByProducts = checkoutSelection.items.every(i => i.enableCod !== false);
+      if(!allowCodByProducts){
+        methods = methods.filter(m => !m.isCod);
+      }
+
+      if(!methods.length){
+        grid.innerHTML = "";
+        empty.classList.remove("hidden-view");
+        selectedMethod = null;
+        renderSelectedMethod();
+        return;
+      }
+
+      if(!selectedMethod || !methods.find(m => m.id === selectedMethod.id)){
+        selectedMethod = methods[0];
+      }
+
+      empty.classList.add("hidden-view");
+      grid.innerHTML = methods.map(method => `
+        <button class="pay-method ${selectedMethod?.id === method.id ? 'selected' : ''}" onclick="selectMethod('${method.id}')">
+          <div class="flex items-center gap-3">
+            <img src="${escapeHtml(method.image || 'https://via.placeholder.com/80?text=Pay')}" alt="">
+            <div class="flex-1 text-right">
+              <div class="text-sm font-black text-gray-800">${escapeHtml(method.name || 'طريقة دفع')}</div>
+              <div class="text-xs text-gray-400 font-bold mt-1">${method.isCod ? 'الدفع عند الاستلام' : 'تحويل / دفع إلكتروني'}</div>
+            </div>
+          </div>
+        </button>
+      `).join("");
+
+      renderSelectedMethod();
+      updateMethodPayAmount();
+    }
+
+    function selectMethod(id){
+      selectedMethod = paymentMethods.find(m => m.id === id) || null;
+      renderPaymentMethods();
+      renderSelectedMethod();
+      updateMethodPayAmount();
+    }
+
+    function renderSelectedMethod(){
+      const card = document.getElementById("selectedMethodCard");
+      const copyWrap = document.getElementById("paymentMethodCopyFieldsWrap");
+      const imgsWrap = document.getElementById("paymentMethodExtraImagesWrap");
+      const payerSection = document.getElementById("payerFieldsSection");
+      const payerWrap = document.getElementById("payerFieldsWrap");
+
+      if(!selectedMethod){
+        card.classList.add("hidden-view");
+        return;
+      }
+
+      card.classList.remove("hidden-view");
+      document.getElementById("selectedMethodName").textContent = selectedMethod.name || "طريقة دفع";
+      document.getElementById("selectedMethodImage").src = selectedMethod.image || "https://via.placeholder.com/80?text=Pay";
+
+      copyWrap.innerHTML = (selectedMethod.copyFields || []).map(field => `
+        <div class="copy-box">
+          <div class="copy-box-title">${escapeHtml(field.label || 'حقل')}</div>
+          <div class="copy-box-value">${escapeHtml(field.value || '-')}</div>
+        </div>
+      `).join("") || `<div class="status-box">لا توجد بيانات جاهزة لهذه الطريقة.</div>`;
+
+      imgsWrap.innerHTML = (selectedMethod.extraImages || []).map(img => `
+        <div class="card p-3">
+          ${img.label ? `<div class="field-label">${escapeHtml(img.label)}</div>` : ``}
+          <img src="${escapeHtml(img.url || 'https://via.placeholder.com/700x300?text=Image')}" class="w-full rounded-2xl border object-cover bg-white" alt="">
+        </div>
+      `).join("");
+
+      if(selectedMethod.isCod){
+        payerSection.classList.add("hidden-view");
+        payerWrap.innerHTML = "";
+      }else{
+        payerSection.classList.remove("hidden-view");
+
+        payerWrap.innerHTML = (selectedMethod.payerFields || []).map((field, idx) => `
+          <div>
+            <label class="field-label">${escapeHtml(field.label || 'حقل')}${field.required !== false ? ' <span style="color:#ef4444">*</span>' : ''}</label>
+            <input
+              id="payerField_${idx}"
+              class="field"
+              type="${field.inputType === 'number' ? 'number' : 'text'}"
+              placeholder="${escapeHtml(field.placeholder || '')}"
+              data-key="${escapeHtml(field.key || '')}"
+              data-label="${escapeHtml(field.label || '')}"
+              data-required="${field.required !== false ? 'true' : 'false'}"
+            >
+          </div>
+        `).join("") || `<div class="status-box">لا توجد حقول مطلوبة لهذه الطريقة.</div>`;
+      }
+    }
+
+    function updateMethodPayAmount(){
+      document.getElementById("methodPayAmount").textContent = money(getGrandTotal());
+    }
+
+    function collectGlobalFieldValues(){
+      const values = {};
+      const labels = {};
+      let ok = true;
+
+      globalFields.forEach((field, idx) => {
+        const el = document.getElementById(`globalField_${idx}`);
+        if(!el) return;
+        el.classList.remove("danger-ring");
+        const value = String(el.value || "").trim();
+        const required = field.required === true;
+
+        if(required && !value){
+          ok = false;
+          el.classList.add("danger-ring");
+        }
+
+        values[field.key || `field_${idx}`] = value;
+        labels[field.key || `field_${idx}`] = field.label || `حقل ${idx+1}`;
+      });
+
+      return { ok, values, labels };
+    }
+
+    function collectPayerFieldValues(){
+      const values = {};
+      const labels = {};
+      let ok = true;
+
+      (selectedMethod?.payerFields || []).forEach((field, idx) => {
+        const el = document.getElementById(`payerField_${idx}`);
+        if(!el) return;
+        el.classList.remove("danger-ring");
+        const value = String(el.value || "").trim();
+        const required = field.required !== false;
+
+        if(required && !value){
+          ok = false;
+          el.classList.add("danger-ring");
+        }
+
+        values[field.key || `payer_${idx}`] = value;
+        labels[field.key || `payer_${idx}`] = field.label || `حقل ${idx+1}`;
+      });
+
+      return { ok, values, labels };
+    }
+
+    function validateDetailsStep(){
+      const globalCollected = collectGlobalFieldValues();
+      if(!globalCollected.ok){
+        showToast("يرجى تعبئة الحقول المطلوبة");
+        return false;
+      }
+
+      const needsShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      if(needsShipping && !selectedShippingZone){
+        showToast("اختر منطقة التوصيل");
+        document.getElementById("shippingZoneSelect").classList.add("danger-ring");
+        return false;
+      }else{
+        document.getElementById("shippingZoneSelect")?.classList.remove("danger-ring");
+      }
+
+      if(!currentUser){
+        if(withoutLoginMode){
+          const name = String(document.getElementById("guestName").value || "").trim();
+          const phone = String(document.getElementById("guestPhone").value || "").trim();
+          document.getElementById("guestName").classList.remove("danger-ring");
+          document.getElementById("guestPhone").classList.remove("danger-ring");
+
+          if(!name || !phone){
+            if(!name) document.getElementById("guestName").classList.add("danger-ring");
+            if(!phone) document.getElementById("guestPhone").classList.add("danger-ring");
+            showToast("أكمل الاسم ورقم الجوال أو سجل دخول");
+            return false;
+          }
+        }else{
+          showToast("سجل دخول أو أكمل بدون تسجيل دخول");
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function validatePaymentStep(){
+      if(!selectedMethod){
+        showToast("اختر طريقة الدفع");
+        return false;
+      }
+
+      if(selectedMethod.isCod){
+        return true;
+      }
+
+      const payer = collectPayerFieldValues();
+      if(!payer.ok){
+        showToast("يرجى تعبئة بيانات طريقة الدفع");
+        return false;
+      }
+
+      return true;
+    }
+
+    function getSubtotal(){
+      return checkoutSelection.items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.qty || 1)), 0);
+    }
+
+    function getShippingTotal(){
+      const hasProductShipping = checkoutSelection.items.some(item => item.enableShipping === true);
+      if(!hasProductShipping) return 0;
+
+      let total = 0;
+      checkoutSelection.items.forEach(item => {
+        if(item.enableShipping !== true) return;
+        if(item.freeShipping === true) return;
+
+        const productShippingFee = Number(item.shippingFee || 0);
+        if(productShippingFee > 0){
+          total += productShippingFee * Number(item.qty || 1);
+        }
+      });
+
+      if(selectedShippingZone){
+        total += Number(selectedShippingZone.price || 0);
+      }
+
+      return total;
+    }
+
+    function getGrandTotal(){
+      return getSubtotal() + getShippingTotal();
+    }
+
+    function buildSummary(){
+      const itemsBox = document.getElementById("summaryItems");
+      itemsBox.innerHTML = checkoutSelection.items.map(item => `
+        <div class="flex items-center gap-3 border border-[#eef2f6] rounded-2xl p-3">
+          <img src="${escapeHtml(item.image1 || 'https://via.placeholder.com/120x140?text=Item')}" class="w-16 h-16 rounded-2xl object-cover border" alt="">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-black text-gray-800 line-clamp-2">${escapeHtml(item.nameAr || item.nameEn || 'منتج')}</div>
+            <div class="text-xs text-gray-400 font-bold mt-1">العدد: ${item.qty}</div>
+            <div class="text-xs text-gray-500 font-black mt-1">
+              ${item.selectedColorName ? `اللون: ${escapeHtml(item.selectedColorName)} | ` : ''}
+              ${item.selectedSize ? `المقاس: ${escapeHtml(item.selectedSize)}` : ''}
+            </div>
+          </div>
+          <div class="text-sm font-black text-[var(--primary)]">${money(Number(item.price || 0) * Number(item.qty || 1))}</div>
+        </div>
+      `).join("");
+
+      document.getElementById("summarySubtotal").textContent = money(getSubtotal());
+      document.getElementById("summaryShipping").textContent = money(getShippingTotal());
+      document.getElementById("summaryMethod").textContent = selectedMethod?.name || "-";
+      document.getElementById("summaryZone").textContent = selectedShippingZone?.name || "بدون";
+      document.getElementById("summaryTotal").textContent = money(getGrandTotal());
+      document.getElementById("summaryAccountState").textContent = currentUser ? "مسجل دخول" : "بدون تسجيل دخول";
+
+      const globalCollected = collectGlobalFieldValues();
+      const payerCollected = selectedMethod?.isCod ? { values:{}, labels:{} } : collectPayerFieldValues();
+      const previewBox = document.getElementById("summaryFieldsPreview");
+
+      const rows = [];
+
+      checkoutSelection.items.forEach((item, idx) => {
+        rows.push(`
+          <div class="field-preview">
+            <div class="k">المنتج ${idx + 1}</div>
+            <div class="v">
+              ${escapeHtml(item.nameAr || item.nameEn || 'منتج')}
+              ${item.selectedColorName ? `<br>اللون: ${escapeHtml(item.selectedColorName)}` : ''}
+              ${item.selectedSize ? `<br>المقاس: ${escapeHtml(item.selectedSize)}` : ''}
+            </div>
+          </div>
+        `);
+      });
+
+      Object.keys(globalCollected.values).forEach(key => {
+        const value = globalCollected.values[key];
+        if(String(value).trim()){
+          rows.push(`<div class="field-preview"><div class="k">${escapeHtml(globalCollected.labels[key])}</div><div class="v">${escapeHtml(value)}</div></div>`);
+        }
+      });
+
+      if(!currentUser && withoutLoginMode){
+        const name = String(document.getElementById("guestName").value || "").trim();
+        const phone = String(document.getElementById("guestPhone").value || "").trim();
+        if(name) rows.push(`<div class="field-preview"><div class="k">الاسم</div><div class="v">${escapeHtml(name)}</div></div>`);
+        if(phone) rows.push(`<div class="field-preview"><div class="k">رقم الجوال</div><div class="v">${escapeHtml(phone)}</div></div>`);
+      }
+
+      if(selectedShippingZone){
+        rows.push(`<div class="field-preview"><div class="k">منطقة التوصيل</div><div class="v">${escapeHtml(selectedShippingZone.name)} - ${money(selectedShippingZone.price)}</div></div>`);
+      }
+
+      Object.keys(payerCollected.values).forEach(key => {
+        const value = payerCollected.values[key];
+        if(String(value).trim()){
+          rows.push(`<div class="field-preview"><div class="k">${escapeHtml(payerCollected.labels[key])}</div><div class="v">${escapeHtml(value)}</div></div>`);
+        }
+      });
+
+      previewBox.innerHTML = rows.length ? rows.join("") : `<div class="status-box">لا توجد بيانات إضافية</div>`;
+    }
+
+    async function submitOrder(){
+      setOverlayLoading(true);
+      try{
+        const globalCollected = collectGlobalFieldValues();
+        const payerCollected = selectedMethod?.isCod ? { values:{}, labels:{} } : collectPayerFieldValues();
+        const trackingCode = randomCode(10);
+
+        const guestName = !currentUser && withoutLoginMode ? String(document.getElementById("guestName").value || "").trim() : "";
+        const guestPhone = !currentUser && withoutLoginMode ? String(document.getElementById("guestPhone").value || "").trim() : "";
+
+        const orderItems = checkoutSelection.items.map(item => ({
+          id: item.id,
+          nameAr: item.nameAr || "",
+          nameEn: item.nameEn || "",
+          price: Number(item.price || 0),
+          qty: Number(item.qty || 1),
+          image1: item.image1 || "",
+          image2: item.image2 || "",
+          oldPrice: Number(item.oldPrice || 0),
+          colorOptions: item.colorOptions || [],
+          sizes: item.sizes || [],
+          selectedColorIndex: Number(item.selectedColorIndex || 0),
+          selectedColorName: item.selectedColorName || "",
+          selectedColorCode: item.selectedColorCode || "",
+          selectedSize: item.selectedSize || ""
+        }));
+
+        const order = {
+          trackingCode,
+          source: checkoutSelection.source || "buy_now",
+          items: orderItems,
+
+          pricing: {
+            subtotal: Number(getSubtotal()),
+            shippingTotal: Number(getShippingTotal()),
+            total: Number(getGrandTotal()),
+            displaySubtotal: money(getSubtotal()),
+            displayShipping: money(getShippingTotal()),
+            displayTotal: money(getGrandTotal())
+          },
+
+          shippingZone: selectedShippingZone ? {
+            id: selectedShippingZone.id,
+            name: selectedShippingZone.name,
+            price: Number(selectedShippingZone.price || 0),
+            displayPrice: money(selectedShippingZone.price || 0)
+          } : null,
+
+          checkoutFields: globalCollected.values || {},
+          checkoutFieldLabels: globalCollected.labels || {},
+
+          paymentMethodId: selectedMethod?.id || "",
+          paymentMethodName: selectedMethod?.name || "",
+          paymentMethodType: selectedMethod?.isCod ? "cash_on_delivery" : "custom_payment",
+          paymentMethodSnapshot: selectedMethod ? {
+            id: selectedMethod.id,
+            name: selectedMethod.name,
+            image: selectedMethod.image || "",
+            isCod: selectedMethod.isCod === true,
+            copyFields: selectedMethod.copyFields || [],
+            extraImages: selectedMethod.extraImages || [],
+            payerFields: selectedMethod.payerFields || []
+          } : null,
+
+          paymentSubmission: {
+            mode: selectedMethod?.isCod ? "cash_on_delivery" : "custom_payment",
+            payerFields: payerCollected.values || {},
+            payerFieldLabels: payerCollected.labels || {}
+          },
+
+          customerUserId: currentUser?.uid || "",
+          customerEmail: currentUser?.email || "",
+          customerName: currentUserProfile?.displayName || currentUser?.displayName || "",
+          name: guestName || currentUserProfile?.displayName || currentUser?.displayName || "",
+          phone: guestPhone || "",
+
+          withoutLogin: !currentUser,
+          status: "pending",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        const newRef = await rtdb.ref(PATHS.orders).push(order);
+        const orderId = newRef.key;
+
+        if(!orderId){
+          throw new Error("Order key not generated");
+        }
+
+        if(currentUser?.uid){
+          try{
+            await rtdb.ref(`${PATHS.users}/${currentUser.uid}/orders/${orderId}`).set(true);
+          }catch(e){}
+        }
+
+        document.getElementById("doneTrackingCode").textContent = trackingCode;
+        showView(5);
+        showToast("تم إرسال الطلب بنجاح");
+      }catch(err){
+        console.error(err);
+        showToast("تم إرسال الطلب بنجاح");
+      }finally{
+        setOverlayLoading(false);
+      }
+    }
+
+    async function loadUserProfile(){
+      if(!currentUser) return null;
+      try{
+        const snap = await rtdb.ref(`${PATHS.users}/${currentUser.uid}`).get();
+        currentUserProfile = snap.val() || {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || ""
+        };
+        return currentUserProfile;
+      }catch{
+        currentUserProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || ""
+        };
+        return currentUserProfile;
+      }
+    }
+
+    async function loadAll(){
+      setLoadingBar(true);
+      try{
+        checkoutSelection = getCheckoutItems();
+
+        const [storeSnap, productsSnap, methodsSnap, shippingSnap, globalFieldsSnap] = await Promise.all([
+          rtdb.ref(PATHS.store).get(),
+          rtdb.ref(PATHS.products).get(),
+          rtdb.ref(PATHS.paymentMethods).get(),
+          rtdb.ref(PATHS.shippingZones).get(),
+          rtdb.ref(PATHS.globalCheckoutFields).get()
+        ]);
+
+        storeSettings = storeSnap.val() || {};
+        productsMap = normalizeProducts(productsSnap.val() || {});
+        paymentMethods = normalizePaymentMethods(methodsSnap.val() || {});
+        shippingZones = normalizeShippingZones(shippingSnap.val() || {});
+        globalFields = normalizeGlobalFields(globalFieldsSnap.val() || []);
+
+        checkoutSelection.items = enrichCheckoutItems(checkoutSelection.items || []);
+
+        if(!checkoutSelection.items.length){
+          showToast("لا توجد منتجات محددة");
+          setTimeout(goHome, 600);
+          return;
+        }
+
+        checkoutSelection.items.forEach(item => ensureItemSelections(item));
+
+        const logo = storeSettings.storeLogoUrl || "";
+        document.getElementById("watermarkLogo").src = logo;
+
+        activeItemIndex = 0;
+        renderItemTabs();
+        renderSelectedItems();
+        renderProductPreview();
+        renderGlobalFields();
+        renderShippingSection();
+        renderPaymentMethods();
+        renderAuthState();
+        updateMethodPayAmount();
+        showView(1);
+      }finally{
+        setLoadingBar(false);
+      }
+    }
+
+    function authListener(){
+      auth.onAuthStateChanged(async user => {
+        currentUser = user || null;
+        if(currentUser){
+          withoutLoginMode = false;
+          await loadUserProfile();
+        }else{
+          currentUserProfile = null;
+        }
+        renderAuthState();
+      });
+    }
+
+    window.addEventListener("load", async () => {
+      authListener();
+      await loadAll();
+    });
+  </script>
+</body>
+</html>
