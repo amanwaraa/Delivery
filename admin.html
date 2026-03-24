@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel | Tofan Store</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    :root{
+      --primary:#14454d;
+      --accent:#f37021;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --warning:#d97706;
+      --info:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:#f8fafc;
+      color:#111827;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .card{
+      background:#fff;
+      border:1px solid #eef2f7;
+      border-radius:28px;
+      box-shadow:0 10px 30px rgba(0,0,0,.04);
+    }
+    .field{
+      width:100%;
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      padding:13px 14px;
+      outline:none;
+      font-weight:700;
+      transition:.2s ease;
+    }
+    .field:focus{
+      border-color:var(--primary);
+      background:#fff;
+      box-shadow:0 0 0 4px rgba(20,69,77,.08);
+    }
+    .label{
+      display:block;
+      font-size:12px;
+      font-weight:900;
+      color:#6b7280;
+      margin-bottom:8px;
+      margin-right:6px;
+    }
+    .hint{
+      font-size:11px;
+      color:#94a3b8;
+      font-weight:800;
+      margin-top:6px;
+      margin-right:6px;
+    }
+    .btn{
+      border:none;
+      border-radius:999px;
+      padding:12px 18px;
+      font-weight:900;
+      transition:.2s ease;
+      cursor:pointer;
+    }
+    .btn:active{transform:scale(.98)}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-secondary{background:#f3f4f6;color:#374151}
+    .btn-danger{background:#fee2e2;color:#b91c1c}
+    .btn-success{background:#dcfce7;color:#166534}
+    .btn-warning{background:#fef3c7;color:#92400e}
+    .btn-info{background:#dbeafe;color:#1d4ed8}
+    .tab-btn{
+      border-radius:999px;
+      padding:12px 16px;
+      font-weight:900;
+      font-size:13px;
+      transition:.2s ease;
+      border:1px solid transparent;
+      white-space:nowrap;
+      cursor:pointer;
+    }
+    .tab-btn.active{
+      background:var(--primary);
+      color:#fff;
+      box-shadow:0 10px 24px rgba(20,69,77,.18);
+    }
+    .tab-btn.inactive{
+      background:#f3f4f6;
+      color:#4b5563;
+    }
+    .panel{display:none}
+    .panel.active{display:block}
+    .grid-auto{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:14px;
+    }
+    .mini-card{
+      background:#f8fafc;
+      border:1px solid #eef2f7;
+      border-radius:22px;
+      padding:12px;
+    }
+    .empty{
+      background:#fff;
+      border:1px dashed #dbe3eb;
+      border-radius:24px;
+      padding:24px;
+      text-align:center;
+      color:#94a3b8;
+      font-weight:700;
+    }
+    .sticky-top-wrap{
+      position:sticky;
+      top:0;
+      z-index:40;
+      background:#f8fafc;
+      padding-bottom:12px;
+    }
+    .top-loading{
+      position:fixed;
+      top:0;
+      right:0;
+      height:3px;
+      width:0;
+      background:linear-gradient(90deg,var(--primary),var(--accent));
+      z-index:9999;
+      transition:width .3s ease;
+    }
+    .overlay-loading{
+      position:fixed;
+      inset:0;
+      background:rgba(255,255,255,.82);
+      backdrop-filter:blur(5px);
+      z-index:9998;
+      display:none;
+      align-items:center;
+      justify-content:center;
+    }
+    .loader-box{
+      background:#fff;
+      border:1px solid #eef2f7;
+      border-radius:28px;
+      padding:24px 28px;
+      box-shadow:0 20px 50px rgba(0,0,0,.08);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+    }
+    .spinner{
+      width:44px;
+      height:44px;
+      border:4px solid #e5e7eb;
+      border-top-color:var(--primary);
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toast{
+      position:fixed;
+      bottom:24px;
+      left:50%;
+      transform:translateX(-50%);
+      background:#111827;
+      color:#fff;
+      border-radius:999px;
+      padding:12px 18px;
+      z-index:9999;
+      font-size:13px;
+      font-weight:800;
+      white-space:nowrap;
+      max-width:90%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .login-wrap{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .force-change-wrap{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.4);
+      backdrop-filter:blur(4px);
+      z-index:9997;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .force-change-box{
+      width:min(100%,560px);
+      background:#fff;
+      border-radius:28px;
+      border:1px solid #eef2f7;
+      box-shadow:0 24px 60px rgba(0,0,0,.18);
+      padding:24px;
+    }
+    .status-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .status-pending{background:#fef3c7;color:#92400e}
+    .status-approved{background:#dbeafe;color:#1d4ed8}
+    .status-delivered{background:#dcfce7;color:#166534}
+    .status-rejected{background:#fee2e2;color:#b91c1c}
+    .code-box{
+      background:#111827;
+      color:#fff;
+      border-radius:16px;
+      padding:12px;
+      overflow:auto;
+      font-size:12px;
+      font-family:monospace;
+      direction:ltr;
+      unicode-bidi:bidi-override;
+    }
+    .color-dot{
+      width:24px;
+      height:24px;
+      border-radius:999px;
+      border:2px solid #d1d5db;
+      display:inline-block;
+      vertical-align:middle;
+    }
+    .section-img-preview{
+      width:56px;
+      height:56px;
+      border-radius:14px;
+      object-fit:cover;
+      border:1px solid #e5e7eb;
+      background:#fff;
+    }
+    .json-tip{
+      background:#fff7ed;
+      border:1px solid #fed7aa;
+      color:#9a3412;
+      border-radius:18px;
+      padding:12px;
+      font-size:12px;
+      font-weight:800;
+      line-height:1.8;
+    }
+    .builder-item{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      border-radius:20px;
+      padding:12px;
+    }
+    .small-title{
+      font-size:12px;
+      font-weight:900;
+      color:#64748b;
+      margin-bottom:8px;
+    }
+    .preview-pay-box{
+      border:2px solid #111827;
+      border-radius:18px;
+      padding:14px;
+      position:relative;
+      background:#fff;
+    }
+    .preview-pay-title{
+      position:absolute;
+      top:-10px;
+      right:14px;
+      background:#fff;
+      padding:0 8px;
+      font-size:11px;
+      font-weight:900;
+      color:#111827;
+    }
+    .category-icon-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(90px,1fr));
+      gap:10px;
+    }
+    .icon-option{
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      padding:10px;
+      background:#fff;
+      cursor:pointer;
+      text-align:center;
+      transition:.2s ease;
+    }
+    .icon-option.active{
+      border-color:var(--primary);
+      box-shadow:0 0 0 3px rgba(20,69,77,.08);
+      background:#f0f9fa;
+    }
+    .icon-preview-large{
+      width:88px;
+      height:88px;
+      border-radius:24px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .icon-preview-large img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+    .icon-preview-large svg{
+      width:42px;
+      height:42px;
+      color:var(--primary);
+    }
+    .modal{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.4);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:99999;
+      padding:18px;
+    }
+    .modal-box{
+      width:min(100%,980px);
+      max-height:90vh;
+      overflow:auto;
+      background:#fff;
+      border-radius:28px;
+      padding:20px;
+      border:1px solid #e5e7eb;
+      box-shadow:0 20px 60px rgba(0,0,0,.16);
+    }
+    .size-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:999px;
+      padding:8px 14px;
+      font-weight:900;
+      font-size:12px;
+    }
+    .order-box{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      padding:12px;
+    }
+    .order-box-title{
+      font-size:11px;
+      color:#94a3b8;
+      font-weight:900;
+      margin-bottom:6px;
+    }
+    .order-box-value{
+      font-size:13px;
+      color:#111827;
+      font-weight:900;
+      word-break:break-word;
+      line-height:1.9;
+    }
+    .order-summary-row{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:22px;
+      padding:14px;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .order-summary-row:hover{
+      box-shadow:0 10px 24px rgba(0,0,0,.05);
+      border-color:#dbe3eb;
+    }
+    .order-details{
+      display:none;
+      margin-top:12px;
+    }
+    .order-details.open{
+      display:block;
+    }
+    .social-platform-chip{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      background:#eef6f7;
+      color:var(--primary);
+      font-size:11px;
+      font-weight:900;
+      padding:7px 12px;
+    }
+    .backup-drop{
+      border:2px dashed #d7e2ea;
+      border-radius:22px;
+      padding:18px;
+      background:#fbfdff;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="topLoading" class="top-loading"></div>
+
+  <div id="overlayLoading" class="overlay-loading">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <div class="font-black text-[var(--primary)] text-sm">جاري المعالجة...</div>
+    </div>
+  </div>
+
+  <div id="forceChangeWrap" class="force-change-wrap">
+    <div class="force-change-box">
+      <h3 class="font-black text-xl text-[#14454d] mb-2">تغيير بيانات الأدمن إجباري</h3>
+      <p class="text-sm text-gray-400 font-bold mb-5">هذا أول دخول. يجب تغيير البريد وكلمة المرور قبل المتابعة.</p>
+
+      <div class="mb-4">
+        <label class="label">البريد الجديد</label>
+        <input id="forceNewEmail" type="email" class="field" placeholder="new-admin@email.com">
+      </div>
+
+      <div class="mb-4">
+        <label class="label">كلمة المرور الجديدة</label>
+        <input id="forceNewPassword" type="password" class="field" placeholder="كلمة مرور جديدة">
+      </div>
+
+      <div class="mb-5">
+        <label class="label">تأكيد كلمة المرور</label>
+        <input id="forceConfirmPassword" type="password" class="field" placeholder="أعد كتابة كلمة المرور">
+      </div>
+
+      <button class="btn btn-primary w-full" onclick="forceChangeAdminCredentials()">حفظ بيانات الأدمن الجديدة</button>
+    </div>
+  </div>
+
+  <div id="previewModal" class="modal" onclick="if(event.target===this)closePreviewModal()">
+    <div class="modal-box">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="previewModalTitle" class="font-black text-xl text-[#14454d]">معاينة</h3>
+        <button class="btn btn-danger" onclick="closePreviewModal()">إغلاق</button>
+      </div>
+      <div id="previewModalBody"></div>
+    </div>
+  </div>
+
+  <section id="loginScreen" class="login-wrap">
+    <div class="card w-full max-w-md p-6">
+      <div class="text-center mb-6">
+        <div class="w-20 h-20 rounded-full bg-[#14454d]/10 mx-auto flex items-center justify-center text-[#14454d] mb-4">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V9a5 5 0 00-10 0v2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+        </div>
+        <h1 class="text-2xl font-black text-[#14454d]">لوحة تحكم الأدمن</h1>
+        <p class="text-gray-400 font-bold text-sm mt-2">سجل الدخول ببيانات الأدمن</p>
+      </div>
+
+      <div class="mb-4">
+        <label class="label">البريد الإلكتروني</label>
+        <input id="adminEmail" type="email" class="field" value="fayyatfade@gmail.com" placeholder="admin@email.com">
+      </div>
+
+      <div class="mb-5">
+        <label class="label">كلمة المرور</label>
+        <input id="adminPassword" type="password" class="field" value="0000" placeholder="0000">
+      </div>
+
+      <button class="btn btn-primary w-full" onclick="adminLogin()">دخول الأدمن</button>
+    </div>
+  </section>
+
+  <section id="adminScreen" class="hidden">
+    <div class="max-w-7xl mx-auto px-4 py-5 pb-12">
+      <div class="sticky-top-wrap">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h1 class="text-2xl font-black text-[#14454d]">لوحة التحكم</h1>
+            <p class="text-gray-400 font-bold text-sm">إدارة المتجر بالكامل</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button class="btn btn-secondary" onclick="window.open('index.html','_blank')">فتح المتجر</button>
+            <button class="btn btn-danger" onclick="logoutAdmin()">خروج</button>
+          </div>
+        </div>
+
+        <div class="card p-3 overflow-x-auto">
+          <div class="flex gap-2 min-w-max">
+            <button id="tabDashboard" class="tab-btn active" onclick="setTab('dashboard')">الرئيسية</button>
+            <button id="tabAdmin" class="tab-btn inactive" onclick="setTab('admin')">بيانات الأدمن</button>
+            <button id="tabStore" class="tab-btn inactive" onclick="setTab('store')">إعدادات المتجر</button>
+            <button id="tabCategories" class="tab-btn inactive" onclick="setTab('categories')">الأقسام</button>
+            <button id="tabCheckoutFields" class="tab-btn inactive" onclick="setTab('checkoutFields')">حقول الإدخال</button>
+            <button id="tabShipping" class="tab-btn inactive" onclick="setTab('shipping')">مناطق التوصيل</button>
+            <button id="tabProducts" class="tab-btn inactive" onclick="setTab('products')">المنتجات</button>
+            <button id="tabSections" class="tab-btn inactive" onclick="setTab('sections')">البنرات والسلايدرات</button>
+            <button id="tabMenu" class="tab-btn inactive" onclick="setTab('menu')">القائمة الجانبية</button>
+            <button id="tabSocial" class="tab-btn inactive" onclick="setTab('social')">التواصل الاجتماعي</button>
+            <button id="tabPayments" class="tab-btn inactive" onclick="setTab('payments')">طرق الدفع</button>
+            <button id="tabOrders" class="tab-btn inactive" onclick="setTab('orders')">الطلبات</button>
+            <button id="tabData" class="tab-btn inactive" onclick="setTab('data')">البيانات والنسخ</button>
+          </div>
+        </div>
+      </div>
+
+      <section id="panel-dashboard" class="panel active">
+        <div class="grid-auto mb-4">
+          <div class="card p-5"><div class="text-xs text-gray-400 font-black">عدد الأقسام</div><div id="statCategories" class="text-3xl font-black text-[#14454d] mt-2">0</div></div>
+          <div class="card p-5"><div class="text-xs text-gray-400 font-black">عدد المنتجات</div><div id="statProducts" class="text-3xl font-black text-[#14454d] mt-2">0</div></div>
+          <div class="card p-5"><div class="text-xs text-gray-400 font-black">طرق الدفع</div><div id="statPayments" class="text-3xl font-black text-[#14454d] mt-2">0</div></div>
+          <div class="card p-5"><div class="text-xs text-gray-400 font-black">مناطق التوصيل</div><div id="statShippingZones" class="text-3xl font-black text-[#14454d] mt-2">0</div></div>
+        </div>
+
+        <div class="card p-5">
+          <h3 class="font-black text-xl text-[#14454d] mb-4">آخر الطلبات</h3>
+          <div id="dashboardOrders" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <section id="panel-admin" class="panel">
+        <div class="card p-5 max-w-3xl">
+          <h3 class="font-black text-xl text-[#14454d] mb-5">تعديل بيانات الأدمن</h3>
+
+          <div class="mb-4">
+            <label class="label">البريد الحالي</label>
+            <input id="adminCurrentEmail" type="email" class="field" placeholder="البريد الحالي">
+          </div>
+
+          <div class="mb-4">
+            <label class="label">البريد الجديد</label>
+            <input id="adminNewEmail" type="email" class="field" placeholder="البريد الجديد">
+          </div>
+
+          <div class="mb-4">
+            <label class="label">كلمة المرور الحالية</label>
+            <input id="adminCurrentPassword" type="password" class="field" placeholder="كلمة المرور الحالية">
+          </div>
+
+          <div class="mb-4">
+            <label class="label">كلمة المرور الجديدة</label>
+            <input id="adminNewPassword" type="password" class="field" placeholder="كلمة المرور الجديدة">
+          </div>
+
+          <div class="mb-5">
+            <label class="label">تأكيد كلمة المرور الجديدة</label>
+            <input id="adminConfirmPassword" type="password" class="field" placeholder="تأكيد كلمة المرور">
+          </div>
+
+          <button class="btn btn-primary" onclick="updateAdminCredentials()">حفظ بيانات الأدمن</button>
+        </div>
+      </section>
+
+      <section id="panel-store" class="panel">
+        <div class="card p-5">
+          <h3 class="font-black text-xl text-[#14454d] mb-5">إعدادات المتجر</h3>
+
+          <div class="grid-auto">
+            <div><label class="label">اسم المتجر بالعربي</label><input id="storeNameAr" class="field" placeholder="اسم المتجر بالعربي"></div>
+            <div><label class="label">اسم المتجر بالإنجليزي</label><input id="storeNameEn" class="field" placeholder="Store name in English"></div>
+            <div><label class="label">وصف المتجر بالعربي</label><textarea id="storeDescAr" class="field min-h-[110px]" placeholder="وصف مختصر للمتجر"></textarea></div>
+            <div><label class="label">وصف المتجر بالإنجليزي</label><textarea id="storeDescEn" class="field min-h-[110px]" placeholder="Short store description"></textarea></div>
+            <div><label class="label">رابط الشعار</label><input id="storeLogoUrl" class="field" placeholder="https://example.com/logo.png"></div>
+            <div><label class="label">رابط البانر الرئيسي</label><input id="storeTopBannerUrl" class="field" placeholder="https://example.com/banner.jpg"></div>
+            <div>
+              <label class="label">تفعيل الدفع عند الاستلام عالميًا</label>
+              <select id="enableCodGlobal" class="field">
+                <option value="true">مفعل</option>
+                <option value="false">معطل</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-5">
+            <button class="btn btn-primary" onclick="saveStoreSettings()">حفظ إعدادات المتجر</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-categories" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">إضافة / تعديل قسم</h3>
+            <input type="hidden" id="categoryEditId">
+
+            <div class="mb-4">
+              <label class="label">اسم القسم بالعربي</label>
+              <input id="categoryNameAr" class="field" placeholder="مثال: أحذية">
+            </div>
+
+            <div class="mb-4">
+              <label class="label">اسم القسم بالإنجليزي</label>
+              <input id="categoryNameEn" class="field" placeholder="Example: Shoes">
+            </div>
+
+            <div class="mb-4">
+              <label class="label">صورة القسم</label>
+              <input id="categoryImage" class="field" placeholder="https://example.com/category.jpg" oninput="renderCategoryVisualPreview()">
+              <div class="hint">إذا أضفت صورة فسيتم عرضها بدل الأيقونة في المتجر.</div>
+            </div>
+
+            <div class="mb-4">
+              <label class="label">أيقونة القسم</label>
+              <input type="hidden" id="categoryIcon" value="shirt">
+              <div class="hint mb-2">إذا لم تضع صورة، سيتم استخدام الأيقونة المختارة.</div>
+              <div id="categoryIconsGrid" class="category-icon-grid"></div>
+            </div>
+
+            <div class="mb-4">
+              <label class="label">معاينة</label>
+              <div class="icon-preview-large" id="categoryVisualPreview"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div><label class="label">الترتيب</label><input id="categoryOrder" type="number" class="field" placeholder="0"></div>
+              <div><label class="label">الحالة</label><select id="categoryEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveCategory()">حفظ القسم</button>
+              <button class="btn btn-secondary" onclick="resetCategoryForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">الأقسام الحالية</h3>
+            <div id="categoriesList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-checkoutFields" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-5">
+              <h3 class="font-black text-xl text-[#14454d]">الحقول العامة لكل المنتجات</h3>
+              <button class="btn btn-info" onclick="openCheckoutFieldsPreviewModal()">معاينة</button>
+            </div>
+
+            <div class="json-tip mb-4">
+              من هنا تضيف الحقول التي تظهر للزبون في صفحة الدفع.
+              <br>الآن كل حقل يدعم عربي وإنجليزي.
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">حقول الإدخال العامة</label>
+                <button class="btn btn-secondary" type="button" onclick="addCheckoutFieldBuilder()">+ إضافة حقل</button>
+              </div>
+              <div id="checkoutFieldsBuilder" class="space-y-3"></div>
+            </div>
+
+            <div class="mb-5">
+              <label class="label">معاينة سريعة</label>
+              <div id="checkoutFieldsPreviewBox" class="space-y-3"></div>
+            </div>
+
+            <div class="hidden">
+              <textarea id="globalCheckoutFields"></textarea>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary" onclick="saveGlobalCheckoutFields()">حفظ الحقول العامة</button>
+              <button class="btn btn-secondary" onclick="resetCheckoutFieldsBuilder()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">شرح سريع</h3>
+            <div class="space-y-3">
+              <div class="mini-card">
+                <div class="font-black text-sm text-[#14454d] mb-1">اسم الحقل عربي/إنجليزي</div>
+                <div class="text-xs text-gray-500 font-bold">سيظهر حسب اللغة المختارة في المتجر.</div>
+              </div>
+              <div class="mini-card">
+                <div class="font-black text-sm text-[#14454d] mb-1">التلميح عربي/إنجليزي</div>
+                <div class="text-xs text-gray-500 font-bold">النص داخل الحقل يتبدل تلقائيًا حسب اللغة.</div>
+              </div>
+              <div class="mini-card">
+                <div class="font-black text-sm text-[#14454d] mb-1">إجباري</div>
+                <div class="text-xs text-gray-500 font-bold">إذا كان نعم لا يمكن للزبون الإكمال بدون تعبئته.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-shipping" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <div class="flex items-center justify-between gap-2 mb-5">
+              <h3 class="font-black text-xl text-[#14454d]">إضافة / تعديل منطقة توصيل</h3>
+              <button class="btn btn-info" onclick="previewShippingInputs()">معاينة المدخلات</button>
+            </div>
+
+            <input type="hidden" id="shippingEditId">
+
+            <div class="mb-4"><label class="label">اسم المنطقة بالعربي</label><input id="shippingNameAr" class="field" placeholder="مثال: غزة"></div>
+            <div class="mb-4"><label class="label">اسم المنطقة بالإنجليزي</label><input id="shippingNameEn" class="field" placeholder="Example: Gaza"></div>
+            <div class="mb-4"><label class="label">السعر</label><input id="shippingPrice" type="number" class="field" placeholder="مثال: 15"></div>
+            <div class="mb-4"><label class="label">الترتيب</label><input id="shippingOrder" type="number" class="field" placeholder="0"></div>
+            <div class="mb-5"><label class="label">الحالة</label><select id="shippingEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveShippingZone()">حفظ المنطقة</button>
+              <button class="btn btn-secondary" onclick="resetShippingForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">مناطق التوصيل الحالية</h3>
+            <div id="shippingList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-products" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">إضافة / تعديل منتج</h3>
+            <input type="hidden" id="productEditId">
+
+            <div class="mb-4"><label class="label">القسم</label><select id="productCategoryId" class="field"></select></div>
+            <div class="mb-4"><label class="label">اسم المنتج بالعربي</label><input id="productNameAr" class="field" placeholder="مثال: حذاء رياضي"></div>
+            <div class="mb-4"><label class="label">اسم المنتج بالإنجليزي</label><input id="productNameEn" class="field" placeholder="Example: Sport Shoes"></div>
+            <div class="mb-4"><label class="label">وصف المنتج بالعربي</label><textarea id="productDescAr" class="field min-h-[100px]" placeholder="وصف المنتج بالعربي"></textarea></div>
+            <div class="mb-4"><label class="label">وصف المنتج بالإنجليزي</label><textarea id="productDescEn" class="field min-h-[100px]" placeholder="Product description in English"></textarea></div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div><label class="label">السعر</label><input id="productPrice" type="number" class="field" placeholder="70"></div>
+              <div><label class="label">السعر القديم</label><input id="productOldPrice" type="number" class="field" placeholder="90"></div>
+            </div>
+
+            <div class="mb-4"><label class="label">الصورة الأولى</label><input id="productImage1" class="field" placeholder="https://example.com/image-1.jpg"></div>
+            <div class="mb-4"><label class="label">الصورة الثانية</label><input id="productImage2" class="field" placeholder="https://example.com/image-2.jpg"></div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">ألوان المنتج</label>
+                <button type="button" class="btn btn-secondary" onclick="addProductColorOnlyBuilder()">+ إضافة لون</button>
+              </div>
+              <div id="productColorsOnlyBuilder" class="space-y-3"></div>
+              <div class="hint">اللون الآن مستقل تمامًا عن الصور، ويمكنك نشر اللون حتى بدون أي صورة له.</div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">صور السلايدر العامة للمنتج</label>
+                <button type="button" class="btn btn-secondary" onclick="addProductSliderImageBuilder()">+ إضافة صورة سلايدر</button>
+              </div>
+              <div id="productSliderImagesBuilder" class="space-y-3"></div>
+              <div class="hint">هذه الصور تظهر في صفحة الدفع داخل السلايدر بشكل مستقل عن الألوان.</div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">المقاسات المتوفرة</label>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3" id="productSizesDefaults">
+                <label class="mini-card flex items-center gap-2 cursor-pointer"><input type="checkbox" class="product-size-check accent-[#14454d]" value="S"><span class="font-black text-sm">S</span></label>
+                <label class="mini-card flex items-center gap-2 cursor-pointer"><input type="checkbox" class="product-size-check accent-[#14454d]" value="M"><span class="font-black text-sm">M</span></label>
+                <label class="mini-card flex items-center gap-2 cursor-pointer"><input type="checkbox" class="product-size-check accent-[#14454d]" value="L"><span class="font-black text-sm">L</span></label>
+                <label class="mini-card flex items-center gap-2 cursor-pointer"><input type="checkbox" class="product-size-check accent-[#14454d]" value="XL"><span class="font-black text-sm">XL</span></label>
+                <label class="mini-card flex items-center gap-2 cursor-pointer"><input type="checkbox" class="product-size-check accent-[#14454d]" value="XXL"><span class="font-black text-sm">XXL</span></label>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                <input id="productCustomSizeInput" class="field" placeholder="أضف مقاس مخصص مثل 38 أو 3XL">
+                <button type="button" class="btn btn-secondary" onclick="addCustomProductSize()">إضافة مقاس</button>
+              </div>
+
+              <div id="productCustomSizesWrap" class="flex flex-wrap gap-2 mt-3"></div>
+            </div>
+
+            <div class="hidden">
+              <textarea id="productColorOptions"></textarea>
+              <textarea id="productSizes"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div><label class="label">رسوم شحن المنتج</label><input id="productShippingFee" type="number" class="field" placeholder="0"></div>
+              <div><label class="label">الترتيب</label><input id="productOrder" type="number" class="field" placeholder="0"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div><label class="label">شحن مجاني</label><select id="productFreeShipping" class="field"><option value="false">لا</option><option value="true">نعم</option></select></div>
+              <div><label class="label">الدفع عند الاستلام لهذا المنتج</label><select id="productEnableCod" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div><label class="label">تفعيل التوصيل لهذا المنتج</label><select id="productEnableShipping" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+              <div><label class="label">الحالة</label><select id="productEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveProduct()">حفظ المنتج</button>
+              <button class="btn btn-secondary" onclick="resetProductForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex items-center justify-between gap-3 mb-5">
+              <h3 class="font-black text-xl text-[#14454d]">المنتجات الحالية</h3>
+              <select id="productsFilterCategory" class="field max-w-[220px]" onchange="renderProductsList()"></select>
+            </div>
+            <div id="productsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-sections" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">إضافة بانر / سلايدر</h3>
+            <input type="hidden" id="sectionEditId">
+
+            <div class="mb-4"><label class="label">النوع</label><select id="sectionType" class="field"><option value="banner">بانر</option><option value="slider">سلايدر</option></select></div>
+            <div class="mb-4"><label class="label">العنوان بالعربي</label><input id="sectionTitleAr" class="field" placeholder="عنوان بالعربي"></div>
+            <div class="mb-4"><label class="label">العنوان بالإنجليزي</label><input id="sectionTitleEn" class="field" placeholder="Title in English"></div>
+            <div class="mb-4">
+              <label class="label">مكان الظهور</label>
+              <select id="sectionPlacement" class="field">
+                <option value="top">أعلى الصفحة</option>
+                <option value="after_categories">بعد الأقسام</option>
+                <option value="between_categories">بين الأقسام</option>
+                <option value="bottom">أسفل الصفحة</option>
+              </select>
+            </div>
+            <div class="mb-4"><label class="label">الرابط عند الضغط</label><input id="sectionLink" class="field" placeholder="index.html أو https://..."></div>
+            <div class="mb-4"><label class="label">صورة واحدة للبانر</label><input id="sectionImage" class="field" placeholder="https://example.com/banner.jpg"></div>
+            <div class="mb-4"><label class="label">صور السلايدر (كل رابط في سطر)</label><textarea id="sectionImages" class="field min-h-[120px]" placeholder="https://example.com/slide-1.jpg&#10;https://example.com/slide-2.jpg"></textarea></div>
+
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div><label class="label">الترتيب</label><input id="sectionOrder" type="number" class="field" placeholder="0"></div>
+              <div><label class="label">الحالة</label><select id="sectionEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveSection()">حفظ</button>
+              <button class="btn btn-secondary" onclick="resetSectionForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">العناصر الحالية</h3>
+            <div id="sectionsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-menu" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">إضافة عنصر للقائمة الجانبية</h3>
+            <input type="hidden" id="menuEditId">
+
+            <div class="mb-4"><label class="label">الاسم بالعربي</label><input id="menuTitleAr" class="field" placeholder="مثال: سياسة الخصوصية"></div>
+            <div class="mb-4"><label class="label">الاسم بالإنجليزي</label><input id="menuTitleEn" class="field" placeholder="Example: Privacy Policy"></div>
+            <div class="mb-4">
+              <label class="label">نوع العنصر</label>
+              <select id="menuType" class="field">
+                <option value="link">رابط</option>
+                <option value="internal_page">صفحة داخلية</option>
+                <option value="category">قسم</option>
+                <option value="popup_html">نافذة HTML</option>
+              </select>
+            </div>
+            <div class="mb-4"><label class="label">القيمة</label><input id="menuValue" class="field" placeholder="مثال: contact.html أو category_id"></div>
+            <div class="mb-4"><label class="label">HTML النافذة المنبثقة</label><textarea id="menuPopupHtml" class="field min-h-[140px]" placeholder="<div>Hello</div>"></textarea></div>
+
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div><label class="label">الترتيب</label><input id="menuOrder" type="number" class="field" placeholder="0"></div>
+              <div><label class="label">الحالة</label><select id="menuEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveMenuItem()">حفظ</button>
+              <button class="btn btn-secondary" onclick="resetMenuForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">عناصر القائمة</h3>
+            <div id="menuList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-social" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">إضافة / تعديل رابط تواصل اجتماعي</h3>
+            <input type="hidden" id="socialEditId">
+
+            <div class="mb-4">
+              <label class="label">اسم المنصة</label>
+              <select id="socialPlatform" class="field">
+                <option value="facebook">Facebook</option>
+                <option value="instagram">Instagram</option>
+                <option value="telegram">Telegram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="youtube">YouTube</option>
+                <option value="x">X</option>
+                <option value="twitter">Twitter</option>
+                <option value="snapchat">Snapchat</option>
+                <option value="website">Website</option>
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="label">الرابط</label>
+              <input id="socialUrl" class="field" placeholder="https://...">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div><label class="label">الترتيب</label><input id="socialOrder" type="number" class="field" placeholder="0"></div>
+              <div><label class="label">الحالة</label><select id="socialEnabled" class="field"><option value="true">مفعل</option><option value="false">معطل</option></select></div>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="saveSocialLink()">حفظ</button>
+              <button class="btn btn-secondary" onclick="resetSocialForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">الروابط الحالية</h3>
+            <div id="socialLinksList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-payments" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <div class="flex items-center justify-between gap-2 mb-5">
+              <h3 class="font-black text-xl text-[#14454d]">إضافة / تعديل طريقة دفع</h3>
+              <button class="btn btn-info" onclick="openPaymentPreviewModal()">معاينة</button>
+            </div>
+
+            <input type="hidden" id="paymentEditId">
+
+            <div class="mb-4"><label class="label">اسم طريقة الدفع بالعربي</label><input id="paymentNameAr" class="field" placeholder="مثال: تحويل بنكي"></div>
+            <div class="mb-4"><label class="label">اسم طريقة الدفع بالإنجليزي</label><input id="paymentNameEn" class="field" placeholder="Example: Bank Transfer"></div>
+            <div class="mb-4"><label class="label">الصورة تبعت طريقة الدفع</label><input id="paymentImage" class="field" placeholder="https://example.com/payment.png"></div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label class="label">تفعيل الطريقة</label>
+                <select id="paymentEnabled" class="field">
+                  <option value="true">مفعلة</option>
+                  <option value="false">معطلة</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">هل هذه الطريقة دفع عند الاستلام؟</label>
+                <select id="paymentIsCod" class="field">
+                  <option value="false">لا</option>
+                  <option value="true">نعم</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">حقول معلومات الدفع التي يراها الزبون</label>
+                <button class="btn btn-secondary" type="button" onclick="addPaymentCopyFieldBuilder()">+ إضافة حقل</button>
+              </div>
+              <div id="paymentCopyFieldsBuilder" class="space-y-3"></div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">الصور الإضافية للطريقة</label>
+                <button class="btn btn-secondary" type="button" onclick="addPaymentExtraImageBuilder()">+ إضافة صورة</button>
+              </div>
+              <div id="paymentExtraImagesBuilder" class="space-y-3"></div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="label !mb-0">الحقول التي سيملؤها الزبون</label>
+                <button class="btn btn-secondary" type="button" onclick="addPaymentPayerFieldBuilder()">+ إضافة حقل للزبون</button>
+              </div>
+              <div id="paymentPayerFieldsBuilder" class="space-y-3"></div>
+            </div>
+
+            <div class="mb-5">
+              <label class="label">معاينة سريعة</label>
+              <div id="paymentPreviewBox" class="space-y-3"></div>
+            </div>
+
+            <div class="hidden">
+              <textarea id="paymentCopyFields"></textarea>
+              <textarea id="paymentExtraImages"></textarea>
+              <textarea id="paymentPayerFields"></textarea>
+            </div>
+
+            <div class="flex gap-2">
+              <button class="btn btn-primary flex-1" onclick="savePaymentMethod()">حفظ الطريقة</button>
+              <button class="btn btn-secondary" onclick="resetPaymentForm()">جديد</button>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">طرق الدفع الحالية</h3>
+            <div id="paymentsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-orders" class="panel">
+        <div class="card p-5">
+          <div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+            <h3 class="font-black text-xl text-[#14454d]">إدارة الطلبات</h3>
+            <div class="text-xs text-gray-400 font-black">اضغط على أي طلب لعرض التفاصيل</div>
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto mb-5">
+            <button id="ordersFilterAll" class="tab-btn active" onclick="setOrdersFilter('all')">الكل</button>
+            <button id="ordersFilterPending" class="tab-btn inactive" onclick="setOrdersFilter('pending')">قيد الانتظار</button>
+            <button id="ordersFilterApproved" class="tab-btn inactive" onclick="setOrdersFilter('approved')">تمت الموافقة</button>
+            <button id="ordersFilterDelivered" class="tab-btn inactive" onclick="setOrdersFilter('delivered')">تم التسليم</button>
+            <button id="ordersFilterRejected" class="tab-btn inactive" onclick="setOrdersFilter('rejected')">مرفوض</button>
+          </div>
+
+          <div id="ordersList" class="space-y-4"></div>
+        </div>
+      </section>
+
+      <section id="panel-data" class="panel">
+        <div class="grid-auto">
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">مسارات Firebase</h3>
+            <div id="pathsBox" class="code-box"></div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-black text-xl text-[#14454d] mb-5">النسخة الاحتياطية</h3>
+            <div class="backup-drop">
+              <div class="space-y-3">
+                <button class="btn btn-primary" onclick="downloadBackup()">تحميل نسخة احتياطية كاملة</button>
+                <div>
+                  <label class="label">استعادة من ملف JSON</label>
+                  <input id="restoreBackupFile" type="file" class="field" accept=".json,application/json">
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                  <button class="btn btn-warning" onclick="restoreBackup()">استعادة النسخة</button>
+                </div>
+                <div class="hint">الاستعادة تستبدل بيانات المتجر الحالية بالكامل.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <script>
+    firebase.initializeApp(firebaseConfig1885);
+    window.rtdb = firebase.database();
+
+    window.ADMIN_PATHS_1885 = {
+      admin: "settings1885/admin1885",
+      store: FIREBASE_PATHS_1885.settingsStore,
+      banners: FIREBASE_PATHS_1885.settingsBanners,
+      categories: FIREBASE_PATHS_1885.categories,
+      products: FIREBASE_PATHS_1885.products,
+      paymentMethods: FIREBASE_PATHS_1885.settingsPaymentMethods,
+      orders: FIREBASE_PATHS_1885.orders,
+      menuItems: "settings1885/sidebarMenu1885",
+      pageSections: "settings1885/pageSections1885",
+      shippingZones: "settings1885/shippingZones1885",
+      globalCheckoutFields: "settings1885/globalCheckoutFields1885",
+      socialLinks: "settings1885/socialLinks1885"
+    };
+
+    window.DEFAULT_ADMIN_1885 = {
+      email: "fayyatfade@gmail.com",
+      password: "0000",
+      mustChange: true,
+      updatedAt: Date.now()
+    };
+
+    window.KNOWN_COLORS_1885 = [
+      {name:"أحمر", code:"#ff0000"},
+      {name:"أزرق", code:"#0000ff"},
+      {name:"أخضر", code:"#008000"},
+      {name:"أسود", code:"#000000"},
+      {name:"أبيض", code:"#ffffff"},
+      {name:"رمادي", code:"#808080"},
+      {name:"أصفر", code:"#ffff00"},
+      {name:"برتقالي", code:"#ffa500"},
+      {name:"بنفسجي", code:"#800080"},
+      {name:"وردي", code:"#ffc0cb"},
+      {name:"بني", code:"#8b4513"},
+      {name:"كحلي", code:"#001f3f"},
+      {name:"تركواز", code:"#40e0d0"},
+      {name:"ذهبي", code:"#d4af37"},
+      {name:"فضي", code:"#c0c0c0"},
+      {name:"بيج", code:"#f5f5dc"}
+    ];
+
+    window.CATEGORY_ICONS_1885 = [
+      { key:"shirt", label:"ملابس", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8 4l4 2 4-2 4 4-3 2v9a1 1 0 01-1 1H8a1 1 0 01-1-1v-9L4 8l4-4z"/></svg>` },
+      { key:"shoe", label:"أحذية", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 16c2 0 3-1 5-1 2 0 3 2 6 2 3 0 4-1 7-1v3H3v-3zM9 10l2 3"/></svg>` },
+      { key:"bag", label:"حقائب", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8 8V7a4 4 0 118 0v1m-9 0h10a1 1 0 011 1l-1 10a1 1 0 01-1 1H8a1 1 0 01-1-1L6 9a1 1 0 011-1z"/></svg>` },
+      { key:"watch", label:"ساعات", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" stroke-width="1.8"/><path stroke-width="1.8" stroke-linecap="round" d="M12 9.5v2.5l1.5 1.5M9 2h6l-.5 3h-5L9 2zm0 20h6l-.5-3h-5L9 22z"/></svg>` },
+      { key:"glasses", label:"نظارات", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 12l1-3h4a3 3 0 013 3 3 3 0 01-3 3H7a3 3 0 01-3-3zm18 0l-1-3h-4a3 3 0 00-3 3 3 3 0 003 3h1a3 3 0 003-3zM9 12h6"/></svg>` },
+      { key:"hat", label:"قبعات", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 14c1.5-4 5-6 8-6s6.5 2 8 6H4zm2 0v2a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>` },
+      { key:"jacket", label:"جاكيت", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 3l3 2 3-2 4 4-2 3v10H7V10L5 7l4-4zM12 5v15"/></svg>` },
+      { key:"dress", label:"فساتين", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M10 4a2 2 0 104 0m-2 2v4l4 10H8l4-10V6z"/></svg>` },
+      { key:"pants", label:"بناطيل", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8 3h8l-1 18-3-8-3 8L8 3z"/></svg>` },
+      { key:"ring", label:"إكسسوارات", svg:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="15" r="4" stroke-width="1.8"/><path stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3l2 3-2 2-2-2 2-3z"/></svg>` }
+    ];
+  </script>
+
+  <script src="admin2.js"></script>
+</body>
+</html>
