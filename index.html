@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>قارئ الباركود</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      background: #f4f6f9;
+      color: #222;
+    }
+
+    .topbar {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .brand .badge {
+      background: #22c55e;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .actions a {
+      color: #fff;
+      text-decoration: none;
+      margin-right: 10px;
+      font-size: 18px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 0 15px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .version-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .version-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .version-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #fff;
+      background: #3b82f6;
+    }
+
+    .version-icon.pro {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+    }
+
+    .muted {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      border: none;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e2e8f0;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .tab-btn.active {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fade .2s ease-in-out;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fade {
+      from {opacity: 0; transform: translateY(5px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto 15px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #111827;
+    }
+
+    .result {
+      text-align: center;
+      font-size: 18px;
+      color: #059669;
+      margin-top: 10px;
+      word-break: break-word;
+      font-weight: bold;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 15px;
+      background: #fafafa;
+    }
+
+    .feature h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .feature p {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .hidden-item {
+      display: none !important;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <i class="fa-solid fa-barcode"></i>
+      <span>قارئ الباركود</span>
+      <span class="badge" id="versionBadge">عادي</span>
+    </div>
+    <div class="actions">
+      <a href="settings.html" title="الإعدادات"><i class="fa-solid fa-gear"></i></a>
+      <a href="tabs.html" title="إدارة التبويبات"><i class="fa-solid fa-table-cells-large"></i></a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="version-info">
+        <div class="version-box">
+          <div class="version-icon" id="versionIcon">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <div>
+            <div id="versionTitle" style="font-weight:bold; font-size:18px;">النسخة العادية</div>
+            <div class="muted" id="versionDesc">تشغيل أساسي وسريع لقراءة الباركود</div>
+          </div>
+        </div>
+        <div class="muted">
+          النسخة السابقة: <span id="previousVersionText">لا يوجد</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="tabsSection">
+      <div class="tabs" id="tabsButtons"></div>
+      <div id="tabsContents"></div>
+    </div>
+
+    <div class="footer-note">
+      جميع الإعدادات تُحفظ تلقائيًا داخل المتصفح
+    </div>
+  </div>
+
+  <script>
+    let html5QrCode = null;
+    let currentScannerStarted = false;
+
+    const defaultSettings = {
+      currentVersion: "normal",
+      previousVersion: "",
+      pinnedVersion: "normal",
+      tabs: {
+        scanner: { visible: true, label: "الماسح", icon: "fa-camera" },
+        features: { visible: true, label: "الميزات", icon: "fa-star" },
+        info: { visible: true, label: "المعلومات", icon: "fa-circle-info" }
+      },
+      options: {
+        autoOpenCamera: true,
+        stopAfterScan: false,
+        showResultBox: true,
+        showNormalFeature1: true,
+        showNormalFeature2: true,
+        showProFeature1: true,
+        showProFeature2: true,
+        showInfoText: true
+      }
+    };
+
+    function getSettings() {
+      const saved = localStorage.getItem("barcode_app_settings");
+      if (!saved) {
+        localStorage.setItem("barcode_app_settings", JSON.stringify(defaultSettings));
+        return defaultSettings;
+      }
+      return { ...defaultSettings, ...JSON.parse(saved) };
+    }
+
+    function saveSettings(settings) {
+      localStorage.setItem("barcode_app_settings", JSON.stringify(settings));
+    }
+
+    function updateVersionUI(settings) {
+      const version = settings.currentVersion;
+      const versionBadge = document.getElementById("versionBadge");
+      const versionTitle = document.getElementById("versionTitle");
+      const versionDesc = document.getElementById("versionDesc");
+      const versionIcon = document.getElementById("versionIcon");
+      const previousVersionText = document.getElementById("previousVersionText");
+
+      if (version === "pro") {
+        versionBadge.textContent = "PRO";
+        versionTitle.textContent = "نسخة PRO";
+        versionDesc.textContent = "نسخة احترافية بميزات إضافية وتحكم أوسع";
+        versionIcon.classList.add("pro");
+        versionIcon.innerHTML = '<i class="fa-solid fa-crown"></i>';
+      } else {
+        versionBadge.textContent = "عادي";
+        versionTitle.textContent = "النسخة العادية";
+        versionDesc.textContent = "تشغيل أساسي وسريع لقراءة الباركود";
+        versionIcon.classList.remove("pro");
+        versionIcon.innerHTML = '<i class="fa-solid fa-camera"></i>';
+      }
+
+      previousVersionText.textContent =
+        settings.previousVersion === "pro" ? "PRO" :
+        settings.previousVersion === "normal" ? "عادي" : "لا يوجد";
+    }
+
+    function buildTabs(settings) {
+      const tabsButtons = document.getElementById("tabsButtons");
+      const tabsContents = document.getElementById("tabsContents");
+      tabsButtons.innerHTML = "";
+      tabsContents.innerHTML = "";
+
+      const tabsOrder = ["scanner", "features", "info"];
+      let firstVisible = null;
+
+      tabsOrder.forEach(tabKey => {
+        const tab = settings.tabs[tabKey];
+        if (!tab.visible) return;
+
+        if (!firstVisible) firstVisible = tabKey;
+
+        const btn = document.createElement("button");
+        btn.className = "tab-btn";
+        btn.dataset.tab = tabKey;
+        btn.innerHTML = `<i class="fa-solid ${tab.icon}"></i> ${tab.label}`;
+        tabsButtons.appendChild(btn);
+
+        const content = document.createElement("div");
+        content.className = "tab-content";
+        content.id = "tab-" + tabKey;
+
+        if (tabKey === "scanner") {
+          content.innerHTML = `
+            <div id="reader"></div>
+            <div class="result ${settings.options.showResultBox ? "" : "hidden-item"}" id="result">
+              انتظر قراءة الباركود...
+            </div>
+          `;
+        }
+
+        if (tabKey === "features") {
+          const isPro = settings.currentVersion === "pro";
+          let featuresHtml = '<div class="grid">';
+
+          if (!isPro) {
+            if (settings.options.showNormalFeature1) {
+              featuresHtml += `
+                <div class="feature">
+                  <h4><i class="fa-solid fa-bolt"></i> قراءة سريعة</h4>
+                  <p>تشغيل مباشر للكاميرا وقراءة الباركود بسهولة.</p>
+                </div>
+              `;
+            }
+            if (settings.options.showNormalFeature2) {
+              featuresHtml += `
+                <div class="feature">
+                  <h4><i class="fa-solid fa-mobile-screen"></i> توافق ممتاز</h4>
+                  <p>متوافق مع أغلب متصفحات أندرويد الحديثة.</p>
+                </div>
+              `;
+            }
+          } else {
+            if (settings.options.showProFeature1) {
+              featuresHtml += `
+                <div class="feature">
+                  <h4><i class="fa-solid fa-crown"></i> ميزات احترافية</h4>
+                  <p>إدارة متقدمة للتبويبات والخيارات والتحكم الكامل بالواجهة.</p>
+                </div>
+              `;
+            }
+            if (settings.options.showProFeature2) {
+              featuresHtml += `
+                <div class="feature">
+                  <h4><i class="fa-solid fa-sliders"></i> تخصيص كامل</h4>
+                  <p>إظهار وإخفاء التبويبات والخيارات حسب احتياج المستخدم.</p>
+                </div>
+              `;
+            }
+          }
+
+          featuresHtml += "</div>";
+          content.innerHTML = featuresHtml;
+        }
+
+        if (tabKey === "info") {
+          content.innerHTML = settings.options.showInfoText ? `
+            <div class="feature">
+              <h4><i class="fa-solid fa-circle-info"></i> معلومات</h4>
+              <p>
+                هذه الصفحة تفتح الكاميرا مباشرة حسب الإعدادات، وتسمح لك بالتبديل بين النسخة العادية ونسخة PRO،
+                مع حفظ كل التعديلات تلقائيًا داخل المتصفح.
+              </p>
+            </div>
+          ` : `<div class="muted">تم إخفاء محتوى المعلومات من الإعدادات.</div>`;
+        }
+
+        tabsContents.appendChild(content);
+      });
+
+      const buttons = document.querySelectorAll(".tab-btn");
+      const contents = document.querySelectorAll(".tab-content");
+
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          buttons.forEach(b => b.classList.remove("active"));
+          contents.forEach(c => c.classList.remove("active"));
+          btn.classList.add("active");
+          document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+        });
+      });
+
+      if (firstVisible) {
+        const firstBtn = document.querySelector(`.tab-btn[data-tab="${firstVisible}"]`);
+        const firstContent = document.getElementById("tab-" + firstVisible);
+        if (firstBtn && firstContent) {
+          firstBtn.classList.add("active");
+          firstContent.classList.add("active");
+        }
+      }
+    }
+
+    function onScanSuccess(decodedText) {
+      const result = document.getElementById("result");
+      if (result) result.textContent = "تمت القراءة: " + decodedText;
+
+      const settings = getSettings();
+      if (settings.options.stopAfterScan && html5QrCode && currentScannerStarted) {
+        html5QrCode.stop().then(() => {
+          currentScannerStarted = false;
+        }).catch(() => {});
+      }
+    }
+
+    function onScanFailure(error) {
+      // ignore
+    }
+
+    async function startScannerIfNeeded() {
+      const settings = getSettings();
+      const scannerVisible = settings.tabs.scanner.visible;
+      const autoOpen = settings.options.autoOpenCamera;
+      const readerExists = document.getElementById("reader");
+
+      if (!scannerVisible || !autoOpen || !readerExists) return;
+
+      try {
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          onScanSuccess,
+          onScanFailure
+        );
+        currentScannerStarted = true;
+      } catch (e) {
+        const result = document.getElementById("result");
+        if (result) result.textContent = "تعذر فتح الكاميرا: " + e;
+      }
+    }
+
+    window.addEventListener("load", async () => {
+      const settings = getSettings();
+      updateVersionUI(settings);
+      buildTabs(settings);
+      await startScannerIfNeeded();
+    });
+  </script>
+</body>
+</html>
