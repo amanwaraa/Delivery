@@ -26,9 +26,9 @@ const db = getDatabase(app);
 
 const PREFIX = "DFDFG";
 const LOCAL_SESSION_KEY = `${PREFIX}_USER_SESSION`;
-const LOCAL_OFFLINE_DB_NAME = `${PREFIX}_offline_cashier_db_v6`;
-const LOCAL_OFFLINE_DB_VERSION = 6;
-const BACKUP_VERSION = 6;
+const LOCAL_OFFLINE_DB_NAME = `${PREFIX}_offline_cashier_db_v7`;
+const LOCAL_OFFLINE_DB_VERSION = 7;
+const BACKUP_VERSION = 7;
 
 let currentStoreId = localStorage.getItem("activeStoreId") || "default";
 let cart = [];
@@ -47,6 +47,8 @@ let storesListenerRef = null;
 let productsListenerRef = null;
 let invoicesListenerRef = null;
 let purchasesListenerRef = null;
+let expensesListenerRef = null;
+let merchantPaymentsListenerRef = null;
 let licenseListenerRef = null;
 
 let scannerTrack = null;
@@ -96,6 +98,8 @@ function pathClientStores() { return `${baseClientPath()}/stores`; }
 function pathClientProducts() { return `${baseClientPath()}/products`; }
 function pathClientInvoices() { return `${baseClientPath()}/invoices`; }
 function pathClientPurchases() { return `${baseClientPath()}/purchases`; }
+function pathClientExpenses() { return `${baseClientPath()}/expenses`; }
+function pathClientMerchantPayments() { return `${baseClientPath()}/merchantPayments`; }
 function pathClientCounters() { return `${baseClientPath()}/counters`; }
 function pathClientSettings() { return `${baseClientPath()}/settings`; }
 function pathClientBackups() { return `${baseClientPath()}/backups`; }
@@ -107,8 +111,16 @@ function bindBaseEvents() {
   qs("openNewProductBtn")?.addEventListener("click", openNewProduct);
   qs("createInvoiceBtn")?.addEventListener("click", checkout);
   qs("saveProductBtn")?.addEventListener("click", saveProduct);
+
   qs("openPurchaseModalBtn")?.addEventListener("click", openPurchaseModal);
   qs("savePurchaseBtn")?.addEventListener("click", savePurchase);
+
+  qs("openMerchantPaymentModalBtn")?.addEventListener("click", openMerchantPaymentModal);
+  qs("saveMerchantPaymentBtn")?.addEventListener("click", saveMerchantPayment);
+
+  qs("openExpenseModalBtn")?.addEventListener("click", openExpenseModal);
+  qs("saveExpenseBtn")?.addEventListener("click", saveExpense);
+
   qs("createStoreBtn")?.addEventListener("click", createNewStore);
   qs("saveSettingsBtn")?.addEventListener("click", saveSettings);
   qs("logoutBtn")?.addEventListener("click", logoutUser);
@@ -130,6 +142,9 @@ function bindBaseEvents() {
   qs("inventorySearch")?.addEventListener("input", resetProductsAndRender);
   qs("invSearchQuery")?.addEventListener("input", resetInvoicesAndRender);
   qs("invoiceStatusFilter")?.addEventListener("change", resetInvoicesAndRender);
+
+  qs("customersSearch")?.addEventListener("input", renderCustomersPage);
+
   qs("reportFilter")?.addEventListener("change", renderReports);
   qs("posSearch")?.addEventListener("input", searchPosProducts);
   qs("posDiscount")?.addEventListener("input", calculateTotal);
@@ -149,6 +164,11 @@ function bindBaseEvents() {
   qs("manualCustomerName")?.addEventListener("input", handleManualCustomerInput);
   qs("manualCustomerPhone")?.addEventListener("input", handleManualCustomerInput);
 
+  qs("paymentMethod")?.addEventListener("change", () => fillTransferAccountsSelect("transferAccountSelect", qs("paymentMethod")?.value || "all"));
+  qs("manualPaymentMethod")?.addEventListener("change", () => fillTransferAccountsSelect("transferAccountSelectManual", qs("manualPaymentMethod")?.value || "all"));
+  qs("merchantPaymentMethod")?.addEventListener("change", () => fillTransferAccountsSelect("merchantPaymentAccount", qs("merchantPaymentMethod")?.value || "all"));
+  qs("expensePaymentMethod")?.addEventListener("change", () => fillTransferAccountsSelect("expenseAccount", qs("expensePaymentMethod")?.value || "all"));
+
   qs("customerHistoryRange")?.addEventListener("change", () => {
     if (currentCustomerHistoryName) {
       openCustomerHistory(currentCustomerHistoryName, currentCustomerHistoryPhone);
@@ -166,6 +186,20 @@ function bindBaseEvents() {
   qs("bulkPrintPurchasesBtn")?.addEventListener("click", () => exportBulkPurchases("print"));
   qs("bulkExportPurchasesPdfBtn")?.addEventListener("click", () => exportBulkPurchases("pdf"));
   qs("bulkExportPurchasesImagesBtn")?.addEventListener("click", () => exportBulkPurchases("images"));
+
+  qs("renderSalesReportBtn")?.addEventListener("click", renderSalesReport);
+  qs("printSalesReportBtn")?.addEventListener("click", () => exportAnyArea("salesReportPrintableArea", "print", "تقرير_المبيعات"));
+  qs("exportSalesReportPdfBtn")?.addEventListener("click", () => exportAnyArea("salesReportPrintableArea", "pdf", "تقرير_المبيعات"));
+  qs("exportSalesReportImageBtn")?.addEventListener("click", () => exportAnyArea("salesReportPrintableArea", "image", "تقرير_المبيعات"));
+
+  qs("renderStockReportBtn")?.addEventListener("click", renderStockReport);
+  qs("printStockReportBtn")?.addEventListener("click", () => exportTableSection("tab-stock-report", "print", "تقرير_البضاعة_الناقصة"));
+  qs("exportStockReportPdfBtn")?.addEventListener("click", () => exportTableSection("tab-stock-report", "pdf", "تقرير_البضاعة_الناقصة"));
+
+  qs("renderProfitReportBtn")?.addEventListener("click", renderProfitReport);
+  qs("printProfitReportBtn")?.addEventListener("click", () => exportTableSection("tab-profit-report", "print", "تقرير_المرابح"));
+  qs("exportProfitReportPdfBtn")?.addEventListener("click", () => exportTableSection("tab-profit-report", "pdf", "تقرير_المرابح"));
+  qs("exportProfitReportImageBtn")?.addEventListener("click", () => exportTableSection("tab-profit-report", "image", "تقرير_المرابح"));
 
   qs("addAccountBtn")?.addEventListener("click", addTransferAccount);
 
@@ -208,15 +242,27 @@ async function initApp() {
 }
 
 function showToast(message, type = "info") {
-  const wrap = qs("toastWrap");
-  if (!wrap) return;
+  const toast = qs("toast");
+  if (!toast) {
+    alert(message);
+    return;
+  }
 
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
   toast.textContent = message;
-  wrap.appendChild(toast);
+  toast.className = "toast show";
 
-  setTimeout(() => toast.remove(), 2600);
+  if (type === "success") {
+    toast.style.background = "rgba(22,101,52,.96)";
+  } else if (type === "error") {
+    toast.style.background = "rgba(185,28,28,.96)";
+  } else {
+    toast.style.background = "rgba(15,23,42,.96)";
+  }
+
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2600);
 }
 
 async function showLoader(text = "جاري المعالجة...", duration = 300) {
@@ -317,6 +363,15 @@ function formatDateTime(dateString) {
   }
 }
 
+function formatDateOnly(dateString) {
+  if (!dateString) return "-";
+  try {
+    return new Date(dateString).toLocaleDateString("ar-EG");
+  } catch {
+    return dateString;
+  }
+}
+
 function formatRemaining(ms) {
   if (ms === null) return "غير محدود";
   if (ms <= 0) return "منتهي";
@@ -372,6 +427,17 @@ function statusLabel(status) {
 
 function statusClass(status) {
   return status === "paid" ? "status-paid" : "status-unpaid";
+}
+
+function paymentLabel(method) {
+  const map = {
+    cash: "كاش",
+    bank: "بنك",
+    wallet: "محفظة",
+    jawwalpay: "جوال باي",
+    app: "تطبيق"
+  };
+  return map[method] || method || "-";
 }
 
 function getLocalSettings() {
@@ -501,6 +567,7 @@ async function bootSessionState() {
     await ensureClientDefaults();
     await loadCurrentStore();
     await updateCurrencyUI();
+    await fillAllAccountSelects();
     detachRealtimeListeners();
     showApp();
     switchTab("pos");
@@ -518,6 +585,7 @@ async function bootSessionState() {
   await ensureClientDefaults();
   await loadCurrentStore();
   await updateCurrencyUI();
+  await fillAllAccountSelects();
 
   if (isOnline() && session.appMode === "online") {
     attachRealtimeListeners();
@@ -562,7 +630,18 @@ async function ensureClientDefaults() {
 
   const transferAccounts = await idbGet("meta", "transferAccounts");
   if (!transferAccounts) {
-    await idbSet("meta", { id: "transferAccounts", items: [] });
+    await idbSet("meta", {
+      id: "transferAccounts",
+      items: [
+        {
+          id: "cash_default",
+          kind: "cash",
+          type: "كاش",
+          owner: "الصندوق",
+          number: ""
+        }
+      ]
+    });
   }
 
   const active = localStorage.getItem("activeStoreId");
@@ -649,6 +728,8 @@ function attachRealtimeListeners() {
   productsListenerRef = ref(db, pathClientProducts());
   invoicesListenerRef = ref(db, pathClientInvoices());
   purchasesListenerRef = ref(db, pathClientPurchases());
+  expensesListenerRef = ref(db, pathClientExpenses());
+  merchantPaymentsListenerRef = ref(db, pathClientMerchantPayments());
 
   const session = getLocalSession();
   if (session?.key) {
@@ -673,6 +754,7 @@ function attachRealtimeListeners() {
     for (const item of items) await idbSet("products", item);
 
     if (!qs("tab-products")?.classList.contains("hidden")) renderProducts();
+    if (!qs("tab-stock-report")?.classList.contains("hidden")) renderStockReport();
     const q = qs("posSearch")?.value.trim();
     if (q) searchPosProducts();
   });
@@ -684,6 +766,9 @@ function attachRealtimeListeners() {
 
     if (!qs("tab-invoices")?.classList.contains("hidden")) renderInvoices();
     if (!qs("tab-reports")?.classList.contains("hidden")) renderReports();
+    if (!qs("tab-customers")?.classList.contains("hidden")) renderCustomersPage();
+    if (!qs("tab-sales-report")?.classList.contains("hidden")) renderSalesReport();
+    if (!qs("tab-profit-report")?.classList.contains("hidden")) renderProfitReport();
   });
 
   onValue(purchasesListenerRef, async snap => {
@@ -693,6 +778,25 @@ function attachRealtimeListeners() {
 
     if (!qs("tab-purchases")?.classList.contains("hidden")) renderPurchases();
     if (!qs("tab-reports")?.classList.contains("hidden")) renderReports();
+    if (!qs("tab-profit-report")?.classList.contains("hidden")) renderProfitReport();
+  });
+
+  onValue(expensesListenerRef, async snap => {
+    const items = snap.exists() ? Object.values(snap.val() || {}) : [];
+    await idbClear("expenses");
+    for (const item of items) await idbSet("expenses", item);
+
+    if (!qs("tab-expenses")?.classList.contains("hidden")) renderExpenses();
+    if (!qs("tab-profit-report")?.classList.contains("hidden")) renderProfitReport();
+  });
+
+  onValue(merchantPaymentsListenerRef, async snap => {
+    const items = snap.exists() ? Object.values(snap.val() || {}) : [];
+    await idbClear("merchantPayments");
+    for (const item of items) await idbSet("merchantPayments", item);
+
+    if (!qs("tab-merchant-payments")?.classList.contains("hidden")) renderMerchantPayments();
+    if (!qs("tab-profit-report")?.classList.contains("hidden")) renderProfitReport();
   });
 }
 
@@ -701,6 +805,8 @@ function detachRealtimeListeners() {
   if (productsListenerRef) off(productsListenerRef);
   if (invoicesListenerRef) off(invoicesListenerRef);
   if (purchasesListenerRef) off(purchasesListenerRef);
+  if (expensesListenerRef) off(expensesListenerRef);
+  if (merchantPaymentsListenerRef) off(merchantPaymentsListenerRef);
   if (licenseListenerRef) off(licenseListenerRef);
 }
 
@@ -788,6 +894,7 @@ async function handleLicenseLogin() {
   await syncCloudToOffline();
   await loadCurrentStore();
   await updateCurrencyUI();
+  await fillAllAccountSelects();
 
   if (session.appMode === "online") {
     attachRealtimeListeners();
@@ -818,6 +925,12 @@ async function switchTab(tabId) {
   if (tabId === "products") await resetProductsAndRender();
   if (tabId === "invoices") await resetInvoicesAndRender();
   if (tabId === "purchases") await renderPurchases();
+  if (tabId === "merchant-payments") await renderMerchantPayments();
+  if (tabId === "customers") await renderCustomersPage();
+  if (tabId === "expenses") await renderExpenses();
+  if (tabId === "sales-report") await renderSalesReport();
+  if (tabId === "stock-report") await renderStockReport();
+  if (tabId === "profit-report") await renderProfitReport();
   if (tabId === "reports") await renderReports();
   if (tabId === "stores") await renderStoresList();
   if (tabId === "settings") await loadSettingsPage();
