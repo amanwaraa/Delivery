@@ -11,20 +11,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCnLAY7zQyBy7gUuL9wszt9aEhiJgvRmxI",
-  authDomain: "shop-d52dc.firebaseapp.com",
-  databaseURL: "https://shop-d52dc-default-rtdb.firebaseio.com",
-  projectId: "shop-d52dc",
-  storageBucket: "shop-d52dc.appspot.com",
-  messagingSenderId: "97580537866",
-  appId: "1:97580537866:web:abc46e5a2f527b6300a7f3",
-  measurementId: "G-956RQMBP42"
+  apiKey: "AIzaSyANRh5cSHuNzSJrSRa-vslWownoYos2mT4",
+  authDomain: "bbbb-a5332.firebaseapp.com",
+  databaseURL: "https://bbbb-a5332-default-rtdb.firebaseio.com",
+  projectId: "bbbb-a5332",
+  storageBucket: "bbbb-a5332.firebasestorage.app",
+  messagingSenderId: "261450260086",
+  appId: "1:261450260086:web:5aa538c40ea527efb64957",
+  measurementId: "G-QMG6J94FBE"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const PREFIX = "DFDFG";
+const STORE_PRODUCTS_PATH = "productsMohanad";
 const LOCAL_SESSION_KEY = `${PREFIX}_USER_SESSION`;
 const LOCAL_OFFLINE_DB_NAME = `${PREFIX}_offline_cashier_db_v6`;
 const LOCAL_OFFLINE_DB_VERSION = 6;
@@ -57,6 +58,23 @@ let scannerLock = false;
 
 let currentCustomerHistoryName = "";
 let currentCustomerHistoryPhone = "";
+
+const KNOWN_COLORS = [
+  { name: "أسود", code: "#111827" },
+  { name: "أبيض", code: "#ffffff" },
+  { name: "رمادي", code: "#9ca3af" },
+  { name: "كحلي", code: "#1e3a8a" },
+  { name: "أزرق", code: "#2563eb" },
+  { name: "أحمر", code: "#dc2626" },
+  { name: "أخضر", code: "#16a34a" },
+  { name: "زيتي", code: "#4d5d2a" },
+  { name: "بيج", code: "#d6b98c" },
+  { name: "بني", code: "#7c2d12" },
+  { name: "وردي", code: "#ec4899" },
+  { name: "بنفسجي", code: "#7c3aed" },
+  { name: "برتقالي", code: "#f97316" },
+  { name: "أصفر", code: "#eab308" }
+];
 
 document.addEventListener("DOMContentLoaded", async () => {
   lucide.createIcons();
@@ -890,56 +908,188 @@ async function switchStore(id) {
   switchTab("pos");
 }
 
+function normalizeHexColor(value) {
+  const raw = String(value || "#cccccc").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toLowerCase()}`;
+  return "#cccccc";
+}
+
+function makeColorKey(color = {}) {
+  const base = `${color.name || "color"}|${color.code || ""}`;
+  try {
+    return btoa(unescape(encodeURIComponent(base))).replace(/[=+/]/g, "_");
+  } catch {
+    return String(base).toLowerCase().replace(/\s+/g, "_").replace(/[^\u0600-\u06FFa-z0-9_]/g, "") || "color";
+  }
+}
+
+function safeVariantMatrix(matrix, legacyVariants = [], productStock = 0) {
+  const rawMatrix = Array.isArray(matrix) ? matrix : [];
+  if (rawMatrix.length) {
+    return rawMatrix.map(row => ({
+      size: String(row.size || row.name || "بدون مقاس").trim() || "بدون مقاس",
+      colors: (Array.isArray(row.colors) ? row.colors : []).map(color => ({
+        key: String(color.key || color.id || makeColorKey(color)).trim(),
+        name: String(color.name || color.colorName || "لون").trim() || "لون",
+        code: normalizeHexColor(color.code || color.colorCode || "#cccccc"),
+        image: String(color.image || color.imageUrl || "").trim(),
+        stock: Math.max(0, Number(color.stock ?? color.qty ?? 0))
+      })).filter(color => color.name)
+    })).filter(row => row.size && row.colors.length);
+  }
+
+  const variants = safeVariants(legacyVariants);
+  if (variants.length) {
+    return variants.map(v => ({
+      size: v.name,
+      colors: [{ key: "default", name: "افتراضي", code: "#cccccc", image: "", stock: Math.max(0, Number(v.qty || 0)) }]
+    }));
+  }
+
+  const total = Math.max(0, Number(productStock || 0));
+  return total > 0 ? [{ size: "بدون مقاس", colors: [{ key: "default", name: "افتراضي", code: "#cccccc", image: "", stock: total }] }] : [];
+}
+
 function safeVariants(variants) {
   return Array.isArray(variants)
     ? variants.map(v => ({
-        name: String(v.name || "").trim(),
-        qty: Number(v.qty || 0)
+        name: String(v.name || v.size || "").trim(),
+        qty: Number(v.qty ?? v.stock ?? 0)
       })).filter(v => v.name)
     : [];
+}
+
+function flattenVariantsFromMatrix(matrix) {
+  return safeVariantMatrix(matrix).map(row => ({
+    name: row.size,
+    qty: row.colors.reduce((sum, color) => sum + Math.max(0, Number(color.stock || 0)), 0)
+  })).filter(v => v.name);
+}
+
+function matrixTotal(matrix) {
+  return safeVariantMatrix(matrix).reduce((sum, row) => sum + row.colors.reduce((s, color) => s + Math.max(0, Number(color.stock || 0)), 0), 0);
 }
 
 function variantsTotal(variants) {
   return safeVariants(variants).reduce((s, v) => s + Number(v.qty || 0), 0);
 }
 
-function getVariantsFromForm() {
-  const rows = [...document.querySelectorAll(".variant-row")];
-  return rows.map(row => ({
-    name: row.querySelector(".variant-name").value.trim(),
-    qty: Number(row.querySelector(".variant-qty").value || 0)
-  })).filter(v => v.name);
+function extractColorOptionsFromMatrix(matrix) {
+  const map = new Map();
+  safeVariantMatrix(matrix).forEach(row => row.colors.forEach(color => {
+    const key = color.key || makeColorKey(color);
+    if (!map.has(key)) {
+      map.set(key, { key, name: color.name || "لون", code: normalizeHexColor(color.code || "#cccccc"), images: color.image ? [color.image] : [] });
+    }
+  }));
+  return [...map.values()];
 }
 
-function renderVariantsForm(variants = []) {
+function getVariantMatrixFromForm() {
+  const rows = [...document.querySelectorAll(".variant-row")];
+  return rows.map(row => {
+    const size = row.querySelector(".variant-size")?.value.trim() || "";
+    const colors = [...row.querySelectorAll(".size-color-row")].map(colorRow => {
+      const name = colorRow.querySelector(".variant-color-name")?.value.trim() || "";
+      const code = normalizeHexColor(colorRow.querySelector(".variant-color-code")?.value || "#cccccc");
+      const stock = Math.max(0, Number(colorRow.querySelector(".variant-color-qty")?.value || 0));
+      return {
+        key: makeColorKey({ name, code }),
+        name: name || "لون",
+        code,
+        image: "",
+        stock
+      };
+    }).filter(color => color.name);
+    return { size, colors };
+  }).filter(row => row.size && row.colors.length);
+}
+
+function getVariantsFromForm() {
+  return flattenVariantsFromMatrix(getVariantMatrixFromForm());
+}
+
+function renderVariantsForm(matrixOrVariants = [], legacyVariants = [], productStock = 0) {
   const box = qs("variantsBox");
   if (!box) return;
   box.innerHTML = "";
-  safeVariants(variants).forEach(v => addVariantRow(v.name, v.qty));
+  const matrix = safeVariantMatrix(matrixOrVariants, legacyVariants, productStock);
+  matrix.forEach(row => addVariantRow(row.size, row.colors));
 }
 
-function addVariantRow(name = "", qty = "") {
-  const box = qs("variantsBox");
+function addColorToSizeRow(sizeRow, color = {}) {
+  const box = sizeRow.querySelector(".variant-colors-box");
   if (!box) return;
 
+  const selectedKnown = KNOWN_COLORS.find(c =>
+    String(c.name).trim() === String(color.name || "").trim()
+    || normalizeHexColor(c.code) === normalizeHexColor(color.code || "")
+  );
+
   const row = document.createElement("div");
-  row.className = "variant-row grid grid-cols-[1fr_120px_50px] gap-3 items-center";
+  row.className = "size-color-row";
   row.innerHTML = `
-    <input type="text" class="variant-name w-full p-3 bg-gray-50 border rounded-xl" placeholder="اسم الصنف / المقاس" value="${escapeHtmlAttr(name)}">
-    <input type="number" class="variant-qty w-full p-3 bg-gray-50 border rounded-xl text-center" placeholder="الكمية" value="${qty}">
-    <button type="button" class="bg-red-50 text-red-600 rounded-xl h-full font-bold">✕</button>
+    <input type="text" class="variant-color-name w-full p-3 bg-gray-50 border rounded-xl" placeholder="اسم اللون" value="${escapeHtmlAttr(color.name || selectedKnown?.name || "")}">
+    <select class="variant-color-preset w-full p-3 bg-gray-50 border rounded-xl">
+      <option value="">اختيار لون جاهز</option>
+      ${KNOWN_COLORS.map(c => `<option value="${escapeHtmlAttr(c.name)}" data-code="${escapeHtmlAttr(c.code)}" ${selectedKnown?.name === c.name ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+    </select>
+    <input type="color" class="variant-color-code w-full h-12 bg-gray-50 border rounded-xl" value="${normalizeHexColor(color.code || selectedKnown?.code || "#cccccc")}">
+    <input type="number" class="variant-color-qty w-full p-3 bg-gray-50 border rounded-xl text-center" placeholder="المخزون" value="${Number(color.stock ?? color.qty ?? 0)}" min="0" step="1">
+    <button type="button" class="delete-color-btn bg-red-50 text-red-600 rounded-xl h-12 font-bold flex items-center justify-center">✕</button>
   `;
-  row.querySelector("button").onclick = () => {
-    row.remove();
+
+  const nameInput = row.querySelector(".variant-color-name");
+  const presetSelect = row.querySelector(".variant-color-preset");
+  const codeInput = row.querySelector(".variant-color-code");
+  const qtyInput = row.querySelector(".variant-color-qty");
+
+  presetSelect.addEventListener("change", () => {
+    const opt = presetSelect.selectedOptions[0];
+    if (!opt || !presetSelect.value) return;
+    nameInput.value = presetSelect.value;
+    codeInput.value = normalizeHexColor(opt.dataset.code || "#cccccc");
     syncStockWithVariants();
-  };
-  row.querySelector(".variant-qty").addEventListener("input", syncStockWithVariants);
+  });
+
+  row.querySelector("button").onclick = () => { row.remove(); syncStockWithVariants(); };
+  qtyInput.addEventListener("input", syncStockWithVariants);
+  nameInput.addEventListener("input", syncStockWithVariants);
+  codeInput.addEventListener("input", syncStockWithVariants);
   box.appendChild(row);
 }
 
+function addVariantRow(size = "", colorsOrQty = []) {
+  const box = qs("variantsBox");
+  if (!box) return;
+
+  const colors = Array.isArray(colorsOrQty)
+    ? colorsOrQty
+    : [{ key: "default", name: "افتراضي", code: "#cccccc", stock: Number(colorsOrQty || 0) }];
+
+  const row = document.createElement("div");
+  row.className = "variant-row soft-card p-3 space-y-3";
+  row.innerHTML = `
+    <div class="grid grid-cols-[1fr_50px] gap-3 items-center">
+      <input type="text" class="variant-size w-full p-3 bg-gray-50 border rounded-xl" placeholder="المقاس مثل M أو 42" value="${escapeHtmlAttr(size)}">
+      <button type="button" class="bg-red-50 text-red-600 rounded-xl h-full font-bold">✕</button>
+    </div>
+    <div class="variant-colors-box space-y-2"></div>
+    <button type="button" class="add-color-to-size-btn bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold">+ لون لهذا المقاس</button>
+  `;
+  row.querySelector(".grid button").onclick = () => { row.remove(); syncStockWithVariants(); };
+  row.querySelector(".variant-size").addEventListener("input", syncStockWithVariants);
+  row.querySelector(".add-color-to-size-btn").onclick = () => addColorToSizeRow(row, { name: "", code: "#cccccc", stock: 0 });
+  box.appendChild(row);
+
+  if (colors.length) colors.forEach(color => addColorToSizeRow(row, color));
+  else addColorToSizeRow(row, { name: "", code: "#cccccc", stock: 0 });
+  syncStockWithVariants();
+}
+
 function syncStockWithVariants() {
-  const variants = getVariantsFromForm();
-  const total = variantsTotal(variants);
+  const total = matrixTotal(getVariantMatrixFromForm());
   const stockInput = qs("prodStock");
   if (!stockInput) return;
   const currentStock = Number(stockInput.value || 0);
@@ -953,7 +1103,7 @@ function fillProductForm(p = null) {
   if (qs("prodStock")) qs("prodStock").value = p?.stock ?? "";
   if (qs("prodCost")) qs("prodCost").value = p?.cost ?? "";
   if (qs("prodPrice")) qs("prodPrice").value = p?.price ?? "";
-  renderVariantsForm(p?.variants || []);
+  renderVariantsForm(p?.variantMatrix || [], p?.variants || [], p?.stock || 0);
 }
 
 function resetProductForm() {
@@ -975,9 +1125,10 @@ function openNewProduct() {
 async function saveProduct() {
   const existingId = qs("editProductId")?.value.trim();
   const id = existingId || ("p_" + Date.now());
-  const variants = getVariantsFromForm();
+  const variantMatrix = getVariantMatrixFromForm();
+  const variants = flattenVariantsFromMatrix(variantMatrix);
   const stockInput = Number(qs("prodStock")?.value || 0);
-  const stock = Math.max(stockInput, variantsTotal(variants));
+  const stock = Math.max(stockInput, matrixTotal(variantMatrix));
 
   let oldCreatedAt = null;
   if (existingId) {
@@ -994,6 +1145,9 @@ async function saveProduct() {
     cost: parseFloat(qs("prodCost")?.value) || 0,
     price: parseFloat(qs("prodPrice")?.value) || 0,
     variants,
+    variantMatrix,
+    colorOptions: extractColorOptionsFromMatrix(variantMatrix),
+    sizes: variantMatrix.map(row => row.size),
     createdAt: oldCreatedAt || new Date().toISOString()
   };
 
@@ -1033,8 +1187,9 @@ async function renderProducts() {
   const visible = filtered.slice(0, productsCurrentLimit);
 
   visible.forEach(p => {
-    const variantsTxt = safeVariants(p.variants).length
-      ? safeVariants(p.variants).map(v => `${v.name}: ${v.qty}`).join(" | ")
+    const matrix = safeVariantMatrix(p.variantMatrix, p.variants, p.stock);
+    const variantsTxt = matrix.length
+      ? matrix.map(row => `${row.size}: ${row.colors.map(c => `${c.name} ${c.stock}`).join("، ")}`).join(" | ")
       : "-";
 
     table.innerHTML += `
@@ -1161,14 +1316,45 @@ async function searchPosProducts() {
   results.classList.remove("hidden");
 }
 
-function makeCartLineKey(productId, variantName = "") {
-  return `${productId}__${variantName || ""}`;
+function getFirstAvailableSelection(product) {
+  const matrix = safeVariantMatrix(product.variantMatrix, product.variants, product.stock);
+  for (const row of matrix) {
+    for (const color of row.colors) {
+      if (Number(color.stock || 0) > 0) {
+        return { size: row.size, color };
+      }
+    }
+  }
+  return null;
+}
+
+function makeCartLineKey(productId, size = "", colorKey = "") {
+  return `${productId}__${size || ""}__${colorKey || ""}`;
+}
+
+function findMatrixRow(matrix, size) {
+  return safeVariantMatrix(matrix).find(row => row.size === size) || null;
+}
+
+function findMatrixColor(row, colorKey, colorName = "", colorCode = "") {
+  const colors = row?.colors || [];
+  const normalized = normalizeHexColor(colorCode || "#cccccc");
+  return colors.find(c => colorKey && c.key === colorKey)
+    || colors.find(c => c.name === colorName && normalizeHexColor(c.code) === normalized)
+    || colors.find(c => c.name === colorName)
+    || null;
 }
 
 function addToCart(product) {
   const safeProduct = clone(product);
-  const defaultVariant = safeVariants(safeProduct.variants)[0]?.name || "";
-  const key = makeCartLineKey(safeProduct.id, defaultVariant);
+  const matrix = safeVariantMatrix(safeProduct.variantMatrix, safeProduct.variants, safeProduct.stock);
+  const selection = getFirstAvailableSelection({ ...safeProduct, variantMatrix: matrix });
+  if (!selection) {
+    alert("المنتج غير متوفر!");
+    return;
+  }
+
+  const key = makeCartLineKey(safeProduct.id, selection.size, selection.color.key);
   const existing = cart.find(i => i.lineKey === key);
 
   if (existing) {
@@ -1179,11 +1365,6 @@ function addToCart(product) {
     }
     existing.qty += 1;
   } else {
-    const available = getAvailableQtyForProduct(defaultVariant, safeProduct);
-    if (available < 1) {
-      alert("المنتج غير متوفر!");
-      return;
-    }
     cart.push({
       lineKey: key,
       id: safeProduct.id,
@@ -1192,8 +1373,13 @@ function addToCart(product) {
       price: Number(safeProduct.price || 0),
       cost: Number(safeProduct.cost || 0),
       stock: Number(safeProduct.stock || 0),
-      variants: safeVariants(safeProduct.variants),
-      selectedVariant: defaultVariant,
+      variants: flattenVariantsFromMatrix(matrix),
+      variantMatrix: matrix,
+      selectedVariant: selection.size,
+      selectedSize: selection.size,
+      selectedColorKey: selection.color.key,
+      selectedColorName: selection.color.name,
+      selectedColorCode: selection.color.code,
       qty: 1
     });
   }
@@ -1202,31 +1388,40 @@ function addToCart(product) {
   showToast(`تمت إضافة ${safeProduct.name}`, "success");
 }
 
-function getAvailableQtyForProduct(variantName, productLike) {
-  const variants = safeVariants(productLike.variants);
-  if (variantName && variants.length) {
-    const found = variants.find(v => v.name === variantName);
-    return Number(found?.qty || 0);
+function getAvailableQtyForProduct(size, colorKey, productLike) {
+  const matrix = safeVariantMatrix(productLike.variantMatrix, productLike.variants, productLike.stock);
+  if (matrix.length) {
+    const row = findMatrixRow(matrix, size || matrix[0]?.size || "");
+    const color = findMatrixColor(row, colorKey);
+    return Number(color?.stock || 0);
   }
   return Number(productLike.stock || 0);
 }
 
 function getAvailableQtyForLine(line, productLike) {
-  return getAvailableQtyForProduct(line.selectedVariant, productLike);
+  return getAvailableQtyForProduct(line.selectedSize || line.selectedVariant, line.selectedColorKey, productLike);
 }
 
 function updateCartLineKey(line) {
-  line.lineKey = makeCartLineKey(line.id, line.selectedVariant);
+  line.lineKey = makeCartLineKey(line.id, line.selectedSize || line.selectedVariant, line.selectedColorKey);
 }
 
 function renderVariantSelect(line) {
-  const variants = safeVariants(line.variants);
-  if (!variants.length) return `<span class="text-gray-400">-</span>`;
+  const matrix = safeVariantMatrix(line.variantMatrix, line.variants, line.stock);
+  if (!matrix.length) return `<span class="text-gray-400">-</span>`;
+  const activeSize = line.selectedSize || line.selectedVariant || matrix[0].size;
+  const activeRow = findMatrixRow(matrix, activeSize) || matrix[0];
+  const activeColorKey = line.selectedColorKey || activeRow.colors[0]?.key || "";
 
   return `
-    <select onchange="changeCartVariant('${line.lineKey}', this.value)" class="bg-gray-50 border rounded-lg p-2 text-sm">
-      ${variants.map(v => `<option value="${escapeHtmlAttr(v.name)}" ${v.name === line.selectedVariant ? "selected" : ""}>${escapeHtml(v.name)} (${v.qty})</option>`).join("")}
-    </select>
+    <div class="flex flex-col gap-2 min-w-[180px]">
+      <select onchange="changeCartVariant('${line.lineKey}', this.value, '${escapeJs(activeColorKey)}')" class="bg-gray-50 border rounded-lg p-2 text-sm">
+        ${matrix.map(row => `<option value="${escapeHtmlAttr(row.size)}" ${row.size === activeSize ? "selected" : ""}>${escapeHtml(row.size)}</option>`).join("")}
+      </select>
+      <select onchange="changeCartVariant('${line.lineKey}', '${escapeJs(activeSize)}', this.value)" class="bg-gray-50 border rounded-lg p-2 text-sm">
+        ${activeRow.colors.map(color => `<option value="${escapeHtmlAttr(color.key)}" ${color.key === activeColorKey ? "selected" : ""} ${Number(color.stock || 0) <= 0 ? "disabled" : ""}>${escapeHtml(color.name)} (${Number(color.stock || 0)})</option>`).join("")}
+      </select>
+    </div>
   `;
 }
 
@@ -1265,7 +1460,7 @@ function renderCart() {
   calculateTotal();
 }
 
-async function changeCartVariant(lineKey, variantName) {
+async function changeCartVariant(lineKey, size, colorKey = "") {
   const line = cart.find(i => i.lineKey === lineKey);
   if (!line) return;
 
@@ -1273,26 +1468,33 @@ async function changeCartVariant(lineKey, variantName) {
   const fresh = products.find(p => p.id === line.id);
   if (!fresh) return;
 
-  const available = getAvailableQtyForProduct(variantName, fresh);
+  const matrix = safeVariantMatrix(fresh.variantMatrix, fresh.variants, fresh.stock);
+  const row = findMatrixRow(matrix, size) || matrix[0];
+  const color = findMatrixColor(row, colorKey) || row?.colors.find(c => Number(c.stock || 0) > 0) || row?.colors[0];
+  if (!row || !color) return;
+
+  const available = Number(color.stock || 0);
   if (available < line.qty) {
-    alert("الكمية الحالية أكبر من المتوفر لهذا الصنف");
+    alert("الكمية الحالية أكبر من المتوفر لهذا المقاس/اللون");
+    renderCart();
     return;
   }
 
-  line.variants = safeVariants(fresh.variants);
-  line.selectedVariant = variantName;
+  line.variantMatrix = matrix;
+  line.variants = flattenVariantsFromMatrix(matrix);
   line.stock = Number(fresh.stock || 0);
+  line.selectedVariant = row.size;
+  line.selectedSize = row.size;
+  line.selectedColorKey = color.key;
+  line.selectedColorName = color.name;
+  line.selectedColorCode = color.code;
   updateCartLineKey(line);
 
   const duplicates = new Map();
   cart = cart.reduce((arr, item) => {
     const key = item.lineKey;
-    if (duplicates.has(key)) {
-      duplicates.get(key).qty += item.qty;
-    } else {
-      duplicates.set(key, item);
-      arr.push(item);
-    }
+    if (duplicates.has(key)) duplicates.get(key).qty += item.qty;
+    else { duplicates.set(key, item); arr.push(item); }
     return arr;
   }, []);
 
@@ -1307,7 +1509,8 @@ async function changeQty(lineKey, delta) {
   const fresh = products.find(p => p.id === line.id);
   if (!fresh) return;
 
-  line.variants = safeVariants(fresh.variants);
+  line.variantMatrix = safeVariantMatrix(fresh.variantMatrix, fresh.variants, fresh.stock);
+  line.variants = flattenVariantsFromMatrix(line.variantMatrix);
   line.stock = Number(fresh.stock || 0);
 
   const available = getAvailableQtyForLine(line, fresh);
@@ -1373,23 +1576,22 @@ async function applyStockChange(items, direction) {
     const p = products.find(x => x.id === item.id);
     if (!p) continue;
 
-    const currentStock = Number(p.stock || 0);
-    const variants = safeVariants(p.variants);
+    const matrix = safeVariantMatrix(p.variantMatrix, p.variants, p.stock);
+    const row = findMatrixRow(matrix, item.selectedSize || item.selectedVariant || "");
+    const color = findMatrixColor(row, item.selectedColorKey, item.selectedColorName, item.selectedColorCode);
+    const qtyDelta = direction * Number(item.qty || 0);
 
-    const updatedVariants = variants.map(v => {
-      if (item.selectedVariant && v.name === item.selectedVariant) {
-        return {
-          ...v,
-          qty: Number(v.qty || 0) + (direction * Number(item.qty || 0))
-        };
-      }
-      return v;
-    });
+    if (row && color) {
+      color.stock = Math.max(0, Number(color.stock || 0) + qtyDelta);
+    }
 
     const updated = {
       ...p,
-      stock: Math.max(0, currentStock + (direction * Number(item.qty || 0))),
-      variants: updatedVariants
+      variantMatrix: matrix,
+      variants: flattenVariantsFromMatrix(matrix),
+      colorOptions: extractColorOptionsFromMatrix(matrix),
+      sizes: matrix.map(r => r.size),
+      stock: matrixTotal(matrix)
     };
 
     await saveEntity("products", item.id, updated);
@@ -1406,9 +1608,9 @@ async function validateCartAgainstStock() {
       return false;
     }
 
-    const available = getAvailableQtyForProduct(item.selectedVariant, product);
+    const available = getAvailableQtyForProduct(item.selectedSize || item.selectedVariant, item.selectedColorKey, product);
     if (available < item.qty) {
-      alert(`المخزون غير كافٍ للمنتج: ${item.name}${item.selectedVariant ? " - " + item.selectedVariant : ""}`);
+      alert(`المخزون غير كافٍ للمنتج: ${item.name} - ${item.selectedSize || item.selectedVariant || ""} - ${item.selectedColorName || ""}`);
       return false;
     }
   }
@@ -1610,7 +1812,7 @@ async function viewInvoice(id) {
         <tr>
           <td>${index + 1}</td>
           <td>${escapeHtml(i.name)}</td>
-          <td>${escapeHtml(i.selectedVariant || "-")}</td>
+          <td>${escapeHtml(`${i.selectedSize || i.selectedVariant || "-"}${i.selectedColorName ? " / " + i.selectedColorName : ""}`)}</td>
           <td>${i.qty}</td>
           <td>${Number(i.price).toFixed(2)} ${escapeHtml(inv.currencySymbol || "₪")}</td>
           <td>${(Number(i.price) * i.qty).toFixed(2)} ${escapeHtml(inv.currencySymbol || "₪")}</td>
@@ -3501,6 +3703,43 @@ async function getEntity(kind, id) {
   return await idbGet(kind, id);
 }
 
+async function syncCashierProductToLinkedStore(product) {
+  try {
+    const code = String(product?.code || product?.barcode || "").trim();
+    if (!code || !isOnline()) return;
+
+    const snap = await get(ref(db, STORE_PRODUCTS_PATH));
+    if (!snap.exists()) return;
+
+    const matrix = safeVariantMatrix(product.variantMatrix, product.variants, product.stock);
+    const updatePayload = {
+      cashierProductId: product.id,
+      cashierLicenseKey: currentLicenseKey() || "",
+      cashierBarcode: code,
+      barcode: code,
+      variantMatrix: matrix,
+      variants: flattenVariantsFromMatrix(matrix),
+      colorOptions: extractColorOptionsFromMatrix(matrix),
+      sizes: matrix.map(row => row.size),
+      inventoryTotal: matrixTotal(matrix),
+      updatedAt: Date.now()
+    };
+
+    const tasks = [];
+    Object.entries(snap.val() || {}).forEach(([storeProductId, storeProduct]) => {
+      const linkedCode = String(storeProduct?.cashierBarcode || storeProduct?.barcode || storeProduct?.code || "").trim();
+      const linkedId = String(storeProduct?.cashierProductId || "").trim();
+      if (linkedCode === code || linkedId === String(product.id || "")) {
+        tasks.push(update(ref(db, `${STORE_PRODUCTS_PATH}/${storeProductId}`), updatePayload));
+      }
+    });
+
+    if (tasks.length) await Promise.all(tasks);
+  } catch (error) {
+    console.warn("Store stock sync skipped", error);
+  }
+}
+
 async function saveEntity(kind, id, payload) {
   await idbSet(kind, payload);
 
@@ -3513,6 +3752,9 @@ async function saveEntity(kind, id, payload) {
       purchases: pathClientPurchases()
     };
     await set(ref(db, `${pathMap[kind]}/${id}`), payload);
+    if (kind === "products") {
+      await syncCashierProductToLinkedStore({ ...payload, id });
+    }
   }
 }
 

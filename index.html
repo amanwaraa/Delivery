@@ -509,6 +509,69 @@
       border-radius:24px;
       width:100%;
       box-shadow:0 20px 50px rgba(0,0,0,.18);
+      max-height:calc(100dvh - 32px);
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    #productModal{
+      align-items:flex-start;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    #productModal .modal-card{
+      margin-block:16px;
+    }
+
+    .variant-row{
+      border:1px solid #e5edff;
+      background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);
+      border-radius:22px;
+    }
+
+    .size-color-row{
+      display:grid;
+      grid-template-columns:minmax(120px,1fr) minmax(120px,1fr) 76px 104px 44px;
+      gap:10px;
+      align-items:center;
+      padding:10px;
+      border:1px solid #edf2ff;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 8px 20px rgba(15,23,42,.04);
+    }
+
+    .size-color-row input,
+    .size-color-row select{
+      min-width:0;
+    }
+
+    .size-color-row input[type="color"]{
+      padding:4px;
+      cursor:pointer;
+    }
+
+    @media (max-width: 640px){
+      .modal-wrap{
+        align-items:flex-start;
+        justify-content:flex-start;
+        padding:10px;
+      }
+      .modal-card{
+        max-height:calc(100dvh - 20px);
+        border-radius:22px;
+      }
+      #productModal .modal-card{
+        padding:18px!important;
+        margin-block:10px;
+      }
+      .size-color-row{
+        grid-template-columns:1fr;
+      }
+      .size-color-row .delete-color-btn{
+        width:100%;
+      }
     }
 
     .backup-drop{
@@ -713,7 +776,7 @@
                 <thead class="bg-gray-50 text-gray-500 text-sm">
                   <tr>
                     <th class="p-4">المنتج</th>
-                    <th class="p-4">الصنف</th>
+                    <th class="p-4">المقاس / اللون</th>
                     <th class="p-4">السعر</th>
                     <th class="p-4">الكمية</th>
                     <th class="p-4">المجموع</th>
@@ -806,7 +869,7 @@
                   <th class="p-4">الجملة</th>
                   <th class="p-4">البيع</th>
                   <th class="p-4">المخزون</th>
-                  <th class="p-4">الأصناف/المقاسات</th>
+                  <th class="p-4">المقاسات / الألوان / المخزون</th>
                   <th class="p-4">الإجراءات</th>
                 </tr>
               </thead>
@@ -1191,7 +1254,7 @@
               <thead>
                 <tr>
                   <th style="width:52px">م</th>
-                  <th>الصنف</th>
+                  <th>المقاس / اللون</th>
                   <th style="width:100px">النوع</th>
                   <th style="width:78px">الكمية</th>
                   <th style="width:96px">السعر</th>
@@ -1270,7 +1333,8 @@
 
           <div>
             <label class="block text-sm mb-1">المخزون الكلي</label>
-            <input type="number" id="prodStock" class="input-bordered">
+            <input type="number" id="prodStock" class="input-bordered" readonly>
+            <p class="text-xs text-gray-500 mt-1">يتم حسابه تلقائيًا من مخزون الألوان داخل المقاسات.</p>
           </div>
 
           <div>
@@ -1286,12 +1350,12 @@
 
         <div class="border-t pt-4">
           <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold">الأصناف / المقاسات</h4>
-            <button onclick="addVariantRow()" type="button" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold">أضف صنف</button>
+            <h4 class="font-bold">المقاسات والألوان والمخزون</h4>
+            <button onclick="addVariantRow()" type="button" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold">أضف مقاس</button>
           </div>
           <div id="variantsBox" class="space-y-3"></div>
           <p class="text-xs text-gray-500 mt-2">
-            إذا كان مجموع كميات الأصناف أكبر من المخزون الكلي، سيتم تعديل المخزون تلقائيًا ليطابق مجموع الأصناف.
+            كل مقاس يحتوي ألوانه الخاصة، وكل لون له مخزون مستقل. يتم ربط هذه البيانات مع المتجر عبر باركود المنتج.
           </p>
         </div>
 
